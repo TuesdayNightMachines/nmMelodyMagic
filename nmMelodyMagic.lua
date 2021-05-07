@@ -1,5 +1,5 @@
 -- nmMelodyMagic
--- 0.5.0 @NightMachines
+-- 0.5.1 @NightMachines
 -- llllllll.co/t/nmmelodymagic/
 --
 -- Port of Ken Stone's CV
@@ -13,11 +13,12 @@
 -- Lots of parameters to adjust
 -- in the EDIT menus!
 -- 
--- K1: --
+-- K1: -
 -- E1: Switch Page
--- K2: --
+-- K2: Manual Clock Pulse
+-- K1 + K2: MIDI Panic
 -- E2: Choose Parameter
--- K3: --
+-- K3: Manual Advance Pulse
 -- E3: Change Parameter
 -- 
 
@@ -35,6 +36,7 @@ local pageLabels = {"Infinite Melody >","< Diatonic Converter >", "< Output Proc
 local onOff = {"on", "off"}
 local plusMin = {"+", "-"}
 local intExt = {"int", "ext"}
+local k1held = 0
 
 local devices = {}
 local midi_output = nil
@@ -43,6 +45,7 @@ local midiChs = {}
 local midiSources = {"imDAC1Midi","imDAC1pMidi","imDAC2Midi","imDAC2pMidi","imDAC3Midi", "imDAC3pMidi", "imMixMidi", "imMixpMidi", "dcOutMidi", "dcOutpMidi", "mmOutMidi", "mmOutpMidi"}
 local midiSourcChs = {"imDAC1Ch","imDAC1pCh","imDAC2Ch","imDAC2pCh","imDAC3Ch","imDAC3pCh", "imMixCh", "imMixpCh", "dcOutCh", "dcOutpCh","mmOutCh","mmOutpCh"}
 local activeNotes = {0,0,0,0,0,0,0,0,0,0,0,0}
+local midiPanic = 0
 
 
 --INFINITE MELODY VARIABLES
@@ -74,7 +77,7 @@ local imAdvTicks = {0,0,0,0,0,0}
 
 -- DIATONIC CONVERTER VARIABLES
 
-local dcSelUI = 1
+local dcSelUI = 2
 local dcOctave = 1
 local dcIns = {"DSR In", "DSR1", "DSR2", "DSR3", "Manual"}
 local dcUiElements = {"dcIns","dcManVal","dcRoot","dcMajMin","dcScaling","dcBit5", "dcBit6"}
@@ -96,7 +99,7 @@ local out1SelUI = 1
 
 
 -- MODULO MAGIC VARIABLES
-local mmSelUI = 1
+local mmSelUI = 2
 local mmSelOffset = 0
 local mmUiElements = {"mmIns", "mmManVal", "mmInit","mmOff","mmStepSize","mmAdd","mmSub","mmSteps"}
 local mmIns = {"DAC1", "DAC1-p", "DAC2", "DAC2-p", "DAC3", "DAC3-p","Mix","Mix-p","Dia", "Dia-p", "Manual"}
@@ -132,8 +135,8 @@ function init()
   end
 
   params:add_separator("nmMelodyMagic") 
-  params:add{type = "option", id = "midi_input", name = "Midi Input", options = devices, default = 1, action=set_midi_input}
-  params:add{type = "option", id = "midi_output", name = "Midi Output", options = devices, default = 2, action=set_midi_output}
+  params:add{type = "option", id = "midi_input", name = "Midi Input", options = devices, default = 2, action=set_midi_input}
+  params:add{type = "option", id = "midi_output", name = "Midi Output", options = devices, default = 1, action=set_midi_output}
   
   
   midi_output = midi.connect(params:get("midi_output"))
@@ -143,18 +146,18 @@ function init()
   params:add_separator("Module Settings") 
   params:add_group("Infinite Melody",23)
   
-  params:add_control("imClockRate", "Clock Rate", controlspec.new(-64,63,"lin",1,1,"",1/128,false))
-  params:add_control("imAdvanceRate", "Advance Rate", controlspec.new(-64,63,"lin",1,4,"",1/128,false))
-  params:add{type = "option", id = "imRndMode", name = "Mode", options = imRndOptions, default = 2}
+  params:add_control("imClockRate", "Clock Rate", controlspec.new(-64,63,"lin",1,0,"",1/128,false))
+  params:add_control("imAdvanceRate", "Advance Rate", controlspec.new(-64,63,"lin",1,0,"",1/128,false))
+  params:add{type = "option", id = "imRndMode", name = "Mode", options = imRndOptions, default = 1}
   params:add{type = "option", id = "imNoiseGen", name = "Noise Generator", options = intExt, default = 1}
   params:add_control("imIntNoiseRate", "Int. Noise Gen. Rate", controlspec.new(-64,63,"lin",1,8,"",1/128,false))
-  params:add{type = "number", id = "imExtNoiseVal", name = "Ext. Noise Gen Value", min = 0, max = 127, default = 0, wrap = false, action = function(x) if params:get("imNoiseGen")==2 then imUpdateNoise() end end}
+  params:add{type = "number", id = "imExtNoiseVal", name = "Ext. Noise Gen Value", min = 0, max = 127, default = 65, wrap = false, action = function(x) if params:get("imNoiseGen")==2 then imUpdateNoise() end end}
   params:add{type = "number", id = "imSense", name = "Sense", min = 0, max = 127, default = 64, wrap = false}
 
 
   params:add_separator("Mixer Pots") 
   for i=1,6 do
-    params:add{type = "number", id = "imMix"..i, name = "Mixer "..i, min = 0, max = 127, default = 21, wrap = false}
+    params:add{type = "number", id = "imMix"..i, name = "Mixer "..i, min = 0, max = 127, default = 0, wrap = false}
   end
   
   params:add_separator("Output Processing")
@@ -198,35 +201,38 @@ function init()
   params:add{type = "number", id = "mmOutProcOff", name = "Modulo Out Offset", min = 0, max = 127, default = 0, wrap = false}
   
   params:add_group("MIDI Output Settings",24)
-  params:add{type = "option", id = "imDAC1Midi", name = "DAC 1 Out", options = midiOuts, default = 2, wrap = false}
-  params:add{type = "option", id = "imDAC1Ch", name = "DAC 1 Channel", options = midiChs, default = 2, wrap = false}
-  params:add{type = "option", id = "imDAC1pMidi", name = "DAC 1 Proc. Out", options = midiOuts, default = 2, wrap = false}
-  params:add{type = "option", id = "imDAC1pCh", name = "DAC 1 Proc. Channel", options = midiChs, default = 1, wrap = false}
+  params:add{type = "option", id = "imDAC1Midi", name = "DAC 1 Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC1Ch", name = "DAC 1 Channel", options = midiChs, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC1pMidi", name = "DAC 1 Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC1pCh", name = "DAC 1 Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
  
-  params:add{type = "option", id = "imDAC2Midi", name = "DAC 2 Out", options = midiOuts, default = 2, wrap = false}
-  params:add{type = "option", id = "imDAC2Ch", name = "DAC 2 Channel", options = midiChs, default = 1, wrap = false}
-  params:add{type = "option", id = "imDAC2pMidi", name = "DAC 2 Proc. Out", options = midiOuts, default = 2, wrap = false}
-  params:add{type = "option", id = "imDAC2pCh", name = "DAC 2 Proc. Channel", options = midiChs, default = 1, wrap = false}
+  params:add{type = "option", id = "imDAC2Midi", name = "DAC 2 Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC2Ch", name = "DAC 2 Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC2pMidi", name = "DAC 2 Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC2pCh", name = "DAC 2 Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
 
-  params:add{type = "option", id = "imDAC3Midi", name = "DAC 3 Out", options = midiOuts, default = 2, wrap = false}
-  params:add{type = "option", id = "imDAC3Ch", name = "DAC 3 Channel", options = midiChs, default = 1, wrap = false}
-  params:add{type = "option", id = "imDAC3pMidi", name = "DAC 3 Proc. Out", options = midiOuts, default = 2, wrap = false}
-  params:add{type = "option", id = "imDAC3pCh", name = "DAC 3 Proc. Channel", options = midiChs, default = 1, wrap = false}
+  params:add{type = "option", id = "imDAC3Midi", name = "DAC 3 Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC3Ch", name = "DAC 3 Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC3pMidi", name = "DAC 3 Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC3pCh", name = "DAC 3 Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
 
-  params:add{type = "option", id = "imMixMidi", name = "Mix Out", options = midiOuts, default = 2, wrap = false}
-  params:add{type = "option", id = "imMixCh", name = "Mix Channel", options = midiChs, default = 1, wrap = false}
-  params:add{type = "option", id = "imMixpMidi", name = "Mix Proc. Out", options = midiOuts, default = 2, wrap = false}
-  params:add{type = "option", id = "imMixpCh", name = "Mix Proc. Channel", options = midiChs, default = 1, wrap = false}
+  params:add{type = "option", id = "imMixMidi", name = "Mix Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imMixCh", name = "Mix Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imMixpMidi", name = "Mix Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imMixpCh", name = "Mix Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
 
-  params:add{type = "option", id = "dcOutMidi", name = "Dia Out", options = midiOuts, default = 2, wrap = false}
-  params:add{type = "option", id = "dcOutCh", name = "Dia Channel", options = midiChs, default = 1, wrap = false}
-  params:add{type = "option", id = "dcOutpMidi", name = "Dia Proc. Out", options = midiOuts, default = 2, wrap = false}
-  params:add{type = "option", id = "dcOutpCh", name = "Dia Proc. Channel", options = midiChs, default = 1, wrap = false}
+  params:add{type = "option", id = "dcOutMidi", name = "Dia Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "dcOutCh", name = "Dia Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "dcOutpMidi", name = "Dia Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "dcOutpCh", name = "Dia Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
   
-  params:add{type = "option", id = "mmOutMidi", name = "Modulo Out", options = midiOuts, default = 2, wrap = false}
-  params:add{type = "option", id = "mmOutCh", name = "Modulo Channel", options = midiChs, default = 1, wrap = false}
-  params:add{type = "option", id = "mmOutpMidi", name = "Modulo Proc. Out", options = midiOuts, default = 2, wrap = false}
-  params:add{type = "option", id = "mmOutpCh", name = "Modulo Proc. Channel", options = midiChs, default = 1, wrap = false}
+  params:add{type = "option", id = "mmOutMidi", name = "Modulo Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "mmOutCh", name = "Modulo Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "mmOutpMidi", name = "Modulo Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "mmOutpCh", name = "Modulo Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  
+  
+  
   
   params:add_separator("Encoder Settings")
   params:add{type = "number", id = "encSens", name = "Encoder Sensitivity", min = 0, max = 16, default = 0, wrap = false, action=function(x) norns.enc.sens(0,x) end} 
@@ -658,8 +664,32 @@ function key(id,st)
     else
       k1held = 0
     end
-  elseif id==2 and st==1 then
-  elseif id==3 and st==1 then
+  elseif id==2 then
+    if k1held == 0 then
+      if st==1 then
+        imClockTick=1
+        imClockPulse()
+      else
+        imClockTick=0
+      end
+    else
+      if st==1 then
+        allNotesOff()
+        midiPanic = 1
+      else
+        midiPanic = 0
+      end
+    end
+  elseif id==3 then
+    if st==1 then
+      imAdvTick=1
+      imAdvancePulse()
+    else
+      imAdvTick=0
+      for i=1,6 do
+        imAdvTicks[i]=0
+      end
+    end
   end
 end
 
@@ -1059,6 +1089,15 @@ function redraw()
     screen.text("Mod-p: "..mmOutProc)
   end
   
+  if midiPanic == 1 then
+    screen.level(10)
+    screen.rect(0,0,128,64)
+    screen.fill()
+    screen.level(0)
+    screen.move(64,32)
+    screen.text_center("PANIC!")
+  end
+  
   screen.update()
 
 end
@@ -1200,6 +1239,7 @@ function dcDrawVis(x,y)
   --  screen.move(x+20,y+20)
 --  screen.text(dcMidiNotes[dcOut%12+1])
   
+
   
 end
 
@@ -1281,6 +1321,8 @@ function imDrawDsrs(x,y)
 end
 
 
+
+
 re = metro.init() -- screen refresh
 re.time = 1.0 / 15
 re.event = function()
@@ -1305,6 +1347,18 @@ function updateImMidiOutput()
         midi_output:cc(outCC,imDsrOuts[1],params:get("imDAC1Ch")-1)
     end
   end
+
+  if params:get("imDAC1pCh") > 1 then -- if output on
+    if params:get("imDAC1pMidi") == 1 then -- MIDI Note
+      midi_output:note_off(activeNotes[2], 100, params:get("imDAC1pCh")-1)
+      activeNotes[2] = imDsrOutsProc[1]
+      midi_output:note_on(activeNotes[2], 100, params:get("imDAC1pCh")-1)
+    else -- MIDI CC
+      local outCC = params:get("imDAC1pMidi")-1
+        midi_output:cc(outCC,imDsrOutsProc[1],params:get("imDAC1pCh")-1)
+    end
+  end
+  
   
   if params:get("imDAC2Ch") > 1 then -- if output on
     if params:get("imDAC2Midi") == 1 then -- MIDI Note
@@ -1314,9 +1368,21 @@ function updateImMidiOutput()
     else -- MIDI CC
       local outCC = params:get("imDAC2Midi")-1
         midi_output:cc(outCC,imDsrOuts[2],params:get("imDAC2Ch")-1)
-        --print("cc"..(params:get("imDAC2Midi")-1).."  "..imDsrOuts[2])
     end
   end
+  
+  
+  if params:get("imDAC2pCh") > 1 then -- if output on
+    if params:get("imDAC2pMidi") == 1 then -- MIDI Note
+      midi_output:note_off(activeNotes[4], 100, params:get("imDAC2pCh")-1)
+      activeNotes[4] = imDsrOutsProc[2]
+      midi_output:note_on(activeNotes[4], 100, params:get("imDAC2pCh")-1)
+    else -- MIDI CC
+      local outCC = params:get("imDAC2pMidi")-1
+        midi_output:cc(outCC,imDsrOutsProc[2],params:get("imDAC2pCh")-1)
+    end
+  end
+  
   
   if params:get("imDAC3Ch") > 1 then -- if output on
     if params:get("imDAC3Midi") == 1 then -- MIDI Note
@@ -1329,6 +1395,18 @@ function updateImMidiOutput()
     end
   end
 
+  if params:get("imDAC3pCh") > 1 then -- if output on
+    if params:get("imDAC3pMidi") == 1 then -- MIDI Note
+      midi_output:note_off(activeNotes[6], 100, params:get("imDAC3pCh")-1)
+      activeNotes[6] = imDsrOutsProc[3]
+      midi_output:note_on(activeNotes[6], 100, params:get("imDAC3pCh")-1)
+    else -- MIDI CC
+      local outCC = params:get("imDAC3pMidi")-1
+        midi_output:cc(outCC,imDsrOutsProc[3],params:get("imDAC3pCh")-1)
+    end
+  end
+  
+  
   if params:get("imMixCh") > 1 then -- if output on
     if params:get("imMixMidi") == 1 then -- MIDI Note
       midi_output:note_off(activeNotes[7], 100, params:get("imMixCh")-1)
@@ -1339,6 +1417,19 @@ function updateImMidiOutput()
         midi_output:cc(outCC,imMixOut,params:get("imMixCh")-1)
     end
   end
+
+  if params:get("imMixpCh") > 1 then -- if output on
+    if params:get("imMixpMidi") == 1 then -- MIDI Note
+      midi_output:note_off(activeNotes[8], 100, params:get("imMixpCh")-1)
+      activeNotes[8] = imMixOutProc
+      midi_output:note_on(activeNotes[8], 100, params:get("imMixpCh")-1)
+    else -- MIDI CC
+      local outCC = params:get("imMixpMidi")-1
+        midi_output:cc(outCC,imMixOutProc,params:get("imMixpCh")-1)
+    end
+  end
+  
+
 end
 
 
@@ -1392,6 +1483,19 @@ function updateMmMidiOutput()
     end
   end
   
+end
+
+function allNotesOff()
+
+  for h=1,16 do
+    for i=0,127 do
+      midi_output:note_off(i, 0, h)
+    end
+  end
+  
+  for i=1,#activeNotes do
+    activeNotes[i]= 0
+  end
 end
 
 
