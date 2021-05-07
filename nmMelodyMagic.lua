@@ -1,5 +1,5 @@
 -- nmMelodyMagic
--- 0.5.1 @NightMachines
+-- 0.5.2 @NightMachines
 -- llllllll.co/t/nmmelodymagic/
 --
 -- Port of Ken Stone's CV
@@ -46,7 +46,8 @@ local midiSources = {"imDAC1Midi","imDAC1pMidi","imDAC2Midi","imDAC2pMidi","imDA
 local midiSourcChs = {"imDAC1Ch","imDAC1pCh","imDAC2Ch","imDAC2pCh","imDAC3Ch","imDAC3pCh", "imMixCh", "imMixpCh", "dcOutCh", "dcOutpCh","mmOutCh","mmOutpCh"}
 local activeNotes = {0,0,0,0,0,0,0,0,0,0,0,0}
 local midiPanic = 0
-
+local gateLenIds = {"imDAC1Gate","imDAC1pGate","imDAC2Gate","imDAC2pGate","imDAC3Gate","imDAC3pGate","imMixGate","imMixpGate","dcOutGate","dcOutpGate","mmOutGate","mmOutpGate"}
+local midiChIds = {"imDAC1Ch","imDAC1pCh","imDAC2Ch","imDAC2pCh","imDAC3Ch","imDAC3pCh","imMixCh","imMixpCh","dcOutCh","dcOutpCh","mmOutCh","mmOutpCh"}
 
 --INFINITE MELODY VARIABLES
 
@@ -90,7 +91,7 @@ local dcNotesMin = {"C","D","Eb","F","G","Ab","Bb","C"}
 local dcOut = 0
 local dcOutProc = 0
 local dcMajMin = {"maj", "min"}
-local dcMidiNotes = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"}
+local dcMidiNotes = {"C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"}
 local dcMidiOctaves = {"-1","0","1","2","3","4","5","6","7","8","9"}
 
 
@@ -170,6 +171,9 @@ function init()
   params:add_control("imMixOutProcAtt", "Mix Out Attenuverter", controlspec.new(-1.0,1.0,"lin",0.05,1.0,"",1/40,false))
   params:add{type = "number", id = "imMixOutProcOff", name = "Mix Out Offset", min = 0, max = 127, default = 0, wrap = false}
   
+  
+  
+  
   params:add_group("Diatonic Converter",10)
   params:add{type = "option", id = "dcIns", name = "Input", options = dcIns, default = 5, action = function(x) if x == 5 then dcSelOffset = 1 else dcSelOffset = 0 end end}
   params:add{type = "number", id = "dcManVal", name = "Manual Value", min = 0, max = 63, default = 0, wrap = false, action = function(x) if dcSelOffset == 1 then updateDcOut() end end}
@@ -184,6 +188,9 @@ function init()
   params:add{type = "number", id = "dcOutProcOff", name = "Diatonic Out Offset", min = 0, max = 127, default = 0, wrap = false}
 
 
+  
+  
+  
   params:add_group("Modulo Magic",11)
   params:add{type = "option", id = "mmIns", name = "Input", options = mmIns, default = 11, action = function(x) if x == 11 then mmSelOffset = 1 else mmSelOffset = 0 end end}
   params:add{type = "number", id = "mmManVal", name = "Manual Value", min = 0, max = 127, default = 30, wrap = false, action = function(x) if mmSelOffset == 1 then updateMmOut() end end}
@@ -199,6 +206,26 @@ function init()
   params:add_separator("Output Processing")
   params:add_control("mmOutProcAtt", "Modulo Out Attenuverter", controlspec.new(-1.0,1.0,"lin",0.05,1.0,"",1/40,false))
   params:add{type = "number", id = "mmOutProcOff", name = "Modulo Out Offset", min = 0, max = 127, default = 0, wrap = false}
+ 
+  
+
+  params:add_group("Gate Lengths",13)
+  params:add_separator("DSRIn bit to set note off:")
+  params:add{type = "number", id = "imDAC1Gate", name = "DAC 1 Gate", min = 1, max = 6, default = 1, wrap = false}
+  params:add{type = "number", id = "imDAC1pGate", name = "DAC 1 Proc. Gate", min = 1, max = 6, default = 1, wrap = false}
+  params:add{type = "number", id = "imDAC2Gate", name = "DAC 2 Gate", min = 1, max = 6, default = 2, wrap = false}
+  params:add{type = "number", id = "imDAC2pGate", name = "DAC 2 Proc. Gate", min = 1, max = 6, default = 2, wrap = false}
+  params:add{type = "number", id = "imDAC3Gate", name = "DAC 3 Gate", min = 1, max = 6, default = 3, wrap = false}
+  params:add{type = "number", id = "imDAC3pGate", name = "DAC 3 Proc. Gate", min = 1, max = 6, default = 3, wrap = false}
+  params:add{type = "number", id = "imMixGate", name = "Mix Out Gate", min = 1, max = 6, default = 4, wrap = false}
+  params:add{type = "number", id = "imMixpGate", name = "Mix Proc. Out Gate", min = 1, max = 6, default = 4, wrap = false}
+  params:add{type = "number", id = "dcOutGate", name = "Diatonic Out Gate", min = 1, max = 6, default = 5, wrap = false}
+  params:add{type = "number", id = "dcOutpGate", name = "Diatonic Proc. Out Gate", min = 1, max = 6, default = 5, wrap = false}
+  params:add{type = "number", id = "mmOutGate", name = "Modulo Out Gate", min = 1, max = 6, default = 6, wrap = false}
+  params:add{type = "number", id = "mmOutpGate", name = "Modulo Proc. Out Gate", min = 1, max = 6, default = 6, wrap = false}
+  
+  
+  
   
   params:add_group("MIDI Output Settings",24)
   params:add{type = "option", id = "imDAC1Midi", name = "DAC 1 Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
@@ -221,10 +248,10 @@ function init()
   params:add{type = "option", id = "imMixpMidi", name = "Mix Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
   params:add{type = "option", id = "imMixpCh", name = "Mix Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
 
-  params:add{type = "option", id = "dcOutMidi", name = "Dia Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "dcOutCh", name = "Dia Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "dcOutpMidi", name = "Dia Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "dcOutpCh", name = "Dia Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "dcOutMidi", name = "Diatonic Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "dcOutCh", name = "Diatonic Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "dcOutpMidi", name = "Diatonic Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "dcOutpCh", name = "Diatonic Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
   
   params:add{type = "option", id = "mmOutMidi", name = "Modulo Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
   params:add{type = "option", id = "mmOutCh", name = "Modulo Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
@@ -288,6 +315,7 @@ function imClockIn()
 end
 
 function imClockPulse()
+  notesOff()
   local tempArray = imDsrIn
   for i=6,2,-1 do
     imDsrIn[i] = tempArray[i-1]
@@ -295,7 +323,6 @@ function imClockPulse()
   imDsrIn[1]=imNoiseVal
 
   imDsrInString = imDsrIn[6]..imDsrIn[5]..imDsrIn[4]..imDsrIn[3]..imDsrIn[2]..imDsrIn[1]
-  --print("imDsrIn: "..imDsrIn[6]..imDsrIn[5]..imDsrIn[4]..imDsrIn[3]..imDsrIn[2]..imDsrIn[1])
 end
 
 
@@ -1474,7 +1501,7 @@ function updateMmMidiOutput()
 
   if params:get("mmOutpCh") > 1 then -- if output on
     if params:get("mmOutpMidi") == 1 then -- MIDI Note
-      midi_output:note_off(activeNotes[12], 100, params:get("mmOutpCh")-1)
+      midi_output:note_off(activeNotes[12], 0, params:get("mmOutpCh")-1)
       activeNotes[12] = mmOutProc
       midi_output:note_on(activeNotes[12], 100, params:get("mmOutpCh")-1)
     else -- MIDI CC
@@ -1485,8 +1512,25 @@ function updateMmMidiOutput()
   
 end
 
-function allNotesOff()
 
+
+function notesOff()
+  for i=1,12 do
+    for j=1,6 do
+      if params:get(midiChIds[i]) > 1 then
+        if  imDsrIn[params:get(gateLenIds[i])] == 1 and activeNotes[i] ~= 0 then
+          midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
+          activeNotes[i]=0
+        end
+      end
+    end
+  end
+end
+
+
+
+
+function allNotesOff()
   for h=1,16 do
     for i=0,127 do
       midi_output:note_off(i, 0, h)
