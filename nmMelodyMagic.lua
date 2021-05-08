@@ -1,5 +1,5 @@
 -- nmMelodyMagic
--- 0.5.3 @NightMachines
+-- 0.6.0 @NightMachines
 -- llllllll.co/t/nmmelodymagic/
 --
 -- Port of Ken Stone's CV
@@ -31,8 +31,11 @@
 --norns.enc.sens(0,2)
 --norns.enc.accel(0,false)
 
+engine.name = "PolyPerc"
+local audioOut = 1
+
 local selPage = 1
-local pageLabels = {"Infinite Melody >","< Diatonic Converter >", "< Output Processing >", "< Modulo Magic >", "< Output Processing >", "< Modulation >", "<"}
+local pageLabels = {"Infinite Melody >","< Diatonic Converter >", "< Output Processing >", "< Modulo Magic >", "< Output Processing >", "< Modulation >", "< MIDI Note Settings >", "< Visualizer"}
 local onOff = {"on", "off"}
 local plusMin = {"+", "-"}
 local intExt = {"int", "ext"}
@@ -129,8 +132,18 @@ local modPrevVals = {
   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
 }
 
+-- MIDI NOTE SETTINGS PAGE
+local noteSelUI = 1
+local noteOutSel = 1
+
+
+
+
+
 
 function init()
+  screenClear()
+  
   for id,device in pairs(midi.vports) do
     devices[id] = device.name
   end
@@ -156,7 +169,8 @@ function init()
     allBits[i]=0
   end
 
-  params:add_separator("nmMelodyMagic") 
+  params:add_separator("nmMelodyMagic")
+  params:add{type = "option", id = "audioOut", name = "Audio Output", options = onOff, default = 1, action=function(x) audioOut=x end}
   params:add{type = "option", id = "midi_input", name = "Midi Input", options = devices, default = 2, action=set_midi_input}
   params:add{type = "option", id = "midi_output", name = "Midi Output", options = devices, default = 1, action=set_midi_output}
   
@@ -333,6 +347,7 @@ function init()
   updateImOut()
   updateDcOut()
   updateMmOut()
+  
   redraw()
 
 end
@@ -551,6 +566,13 @@ function modSelColor(x)
   end
 end
 
+function noteSelColor(x)
+  if x== noteSelUI then
+    return 15
+  else
+    return 1
+  end
+end
 
 
 function updateImOut()
@@ -762,68 +784,68 @@ function modulate()
   
   for i=1,3 do
     if params:get("mod"..i.."Src") == 1 then
-      val = imDsrOuts[1] * params:get("mod"..i.."Amt")
+      val = round(imDsrOuts[1] * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][1]
       modPrevVals[i][1] = val
     elseif params:get("mod"..i.."Src") == 2 then
-      val = imDsrOutsProc[1] * params:get("mod"..i.."Amt")
+      val = round(imDsrOutsProc[1] * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][2]
       modPrevVals[i][2] = val
     elseif params:get("mod"..i.."Src") == 3 then
-      val = imDsrOuts[2] * params:get("mod"..i.."Amt")
+      val = round(imDsrOuts[2] * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][3]
       modPrevVals[i][3] = val
     elseif params:get("mod"..i.."Src") == 4 then
-      val = imDsrOutsProc[2] * params:get("mod"..i.."Amt")
+      val = round(imDsrOutsProc[2] * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][4]
       modPrevVals[i][4] = val
     elseif params:get("mod"..i.."Src") == 5 then
-      val = imDsrOuts[3] * params:get("mod"..i.."Amt")
+      val = round(imDsrOuts[3] * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][5]
       modPrevVals[i][5] = val
     elseif params:get("mod"..i.."Src") == 6 then
-      val = imDsrOutsProc[3] * params:get("mod"..i.."Amt")
+      val = round(imDsrOutsProc[3] * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][6]
       modPrevVals[i][6] = val
     elseif params:get("mod"..i.."Src") == 7 then
-      val = imMixOut * params:get("mod"..i.."Amt")
+      val = round(imMixOut * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][7]
       modPrevVals[i][7] = val
     elseif params:get("mod"..i.."Src") == 8 then
-      val = imMixOutProc * params:get("mod"..i.."Amt")
+      val = round(imMixOutProc * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][8]
       modPrevVals[i][8] = val
     elseif params:get("mod"..i.."Src") == 9 then
-      val = dcOut * params:get("mod"..i.."Amt")
+      val = round(dcOut * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][9]
       modPrevVals[i][9] = val
     elseif params:get("mod"..i.."Src") == 10 then
-      val = dcOutProc * params:get("mod"..i.."Amt")
+      val = round(dcOutProc * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][10]
       modPrevVals[i][10] = val
     elseif params:get("mod"..i.."Src") == 11 then
-      val = mmOut * params:get("mod"..i.."Amt")
+      val = round(mmOut * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][11]
       modPrevVals[i][11] = val
     elseif params:get("mod"..i.."Src") == 12 then
-      val = mmOutProc * params:get("mod"..i.."Amt")
+      val = round(mmOutProc * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][12]
       modPrevVals[i][12] = val
     elseif params:get("mod"..i.."Src") == 13 then
-      val = params:get("modManVal1") * params:get("mod"..i.."Amt")
+      val = round(params:get("modManVal1") * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][13]
       modPrevVals[i][13] = val
     elseif params:get("mod"..i.."Src") == 14 then
-      val = params:get("modManVal2") * params:get("mod"..i.."Amt")
+      val = round(params:get("modManVal2") * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][14]
       modPrevVals[i][14] = val
     elseif params:get("mod"..i.."Src") == 15 then
-      val = params:get("modManVal3") * params:get("mod"..i.."Amt")
+      val = round(params:get("modManVal3") * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][15]
       modPrevVals[i][15] = val
     end
-    
-    params:delta(modTgtIds[params:get("mod"..i.."Tgt")], round(outVal))
+
+    params:delta(modTgtIds[params:get("mod"..i.."Tgt")], outVal)
 --    print("tgt: "..modTgtIds[params:get("mod"..i.."Tgt")].."outval: "..round(outVal))
   end
   
@@ -873,7 +895,12 @@ end
 -- ENCODERS
 function enc(id,delta)
   if id==1 then
-    selPage = util.clamp(selPage + delta, 1,6)
+    selPage = util.clamp(selPage + delta, 1,8)
+    if selPage == 8 then
+      screenClear()
+    end
+  
+    
   elseif id==2 then
     if selPage == 1 then
       imSelUI = util.clamp(imSelUI + delta,1,12) -- select ui element
@@ -887,6 +914,8 @@ function enc(id,delta)
       out2SelUI = util.clamp(out2SelUI + delta,1,2)
     elseif selPage == 6 then
       modSelUI = util.clamp(modSelUI + delta,1,12)
+    elseif selPage == 7 then
+      noteSelUI = util.clamp(noteSelUI + delta,1,3)
     end
     
     
@@ -1004,7 +1033,15 @@ function enc(id,delta)
       elseif modSelUI == 12 then
         params:delta("modManVal3",delta)
       end
-    
+      
+    elseif selPage == 7 then -- MIDI Note Settings
+      if noteSelUI == 1 then
+        noteOutSel = util.clamp(noteOutSel + delta,1, 12)
+      elseif noteSelUI == 2 then
+        params:delta(midiNoteStarts[noteOutSel],delta)
+      elseif noteSelUI == 3 then
+        params:delta(midiNoteEnds[noteOutSel],delta)
+      end
     
     end
   end
@@ -1013,15 +1050,11 @@ end
 
 
 function redraw()
-  screen.clear()
   screen.line_width(1)
-  
-  screen.level(0)
-  screen.move(0,0)
-  screen.rect(0,0,128,64)
-  screen.fill()
+
   
   if selPage == 1 then -- infinite melody UI
+    screenClear()
     --- TOP
     screen.level(1)
     screen.rect(0,0,128,7)
@@ -1102,6 +1135,8 @@ function redraw()
    
     
   elseif selPage == 2 then -- diatonic converter UI
+    screenClear()
+    
     --- TOP
     screen.level(1)
     screen.rect(0,0,128,7)
@@ -1150,6 +1185,7 @@ function redraw()
   
     
   elseif selPage == 3 then -- output processors 1
+    screenClear()
     --- TOP
     screen.level(1)
     screen.rect(0,0,128,7)
@@ -1208,11 +1244,8 @@ function redraw()
 
     
     
-    
-    
-    
-    
   elseif selPage == 4 then -- modulo magic
+    screenClear()
     --- TOP
     screen.level(1)
     screen.rect(0,0,128,7)
@@ -1269,6 +1302,7 @@ function redraw()
     
     
   elseif selPage == 5 then -- output processors 2
+    screenClear()
     --- TOP
     screen.level(1)
     screen.rect(0,0,128,7)
@@ -1296,6 +1330,7 @@ function redraw()
     
     
   elseif selPage == 6 then -- modulation
+    screenClear()
     --- TOP
     screen.level(1)
     screen.rect(0,0,128,7)
@@ -1363,7 +1398,47 @@ function redraw()
     screen.level(4)
     screen.move(0,63)
     screen.text("")
-  
+    
+    
+    elseif selPage == 7 then -- midi note settings
+    screenClear()
+    
+    --- TOP
+    screen.level(1)
+    screen.rect(0,0,128,7)
+    screen.fill()
+    screen.level(4)
+    screen.move(64,5)
+    screen.text_center(pageLabels[selPage])
+
+    --- MIDDLE
+    
+    screen.level(noteSelColor(1))
+    screen.move(32,14)
+    screen.text("Output: "..modSources[noteOutSel])
+    
+    screen.level(noteSelColor(2))
+    screen.move(32,21)
+    screen.text("Start: "..params:get(midiNoteStarts[noteOutSel]))
+    
+    screen.level(noteSelColor(3))
+    screen.move(32,28)
+    screen.text("End: "..params:get(midiNoteEnds[noteOutSel]))
+    
+    noteDrawDsrs(0,9)
+    
+    
+    --- BOTTOM
+    screen.level(1)
+    screen.rect(0,57,128,14)
+    screen.fill()
+    screen.level(4)
+    screen.move(0,63)
+    screen.text("")
+    
+    
+    elseif selPage == 8 then -- visualizer
+      drawViz(1)
   end
   
   
@@ -1381,6 +1456,137 @@ function redraw()
   screen.update()
 
 end
+
+local rotateCounter = 0
+local xCounter = 0
+local xAdd = 0
+
+function drawViz(bang)
+  if selPage== 8 then
+    screen.ping()
+    xCounter = (xCounter+1*bang*bang)%360
+    xAdd = round((math.sin(xCounter*math.pi/180)*50)+54)
+
+    --rotateCounter = (rotateCounter+1)%360
+    --screen.rotate(rotateCounter * math.pi/180)
+    
+    local lvl, x, y, a, b, type
+    local ins = {imDsrOuts[1], imDsrOutsProc[1], imDsrOuts[2],imDsrOutsProc[2], imDsrOuts[3],imDsrOutsProc[3], imMixOut, imMixOutProc, dcOut, dcOutProc, mmOut, mmOutProc, params:get("mmSteps"), params:get("mmOff"), params:get("imSense"), imNoiseVal, mmStepCount, dcRoot, mmStepSize}
+    
+    lvl = round((ins[math.random(1,#ins)]/127)*15)
+    x = xAdd+round((ins[math.random(1,#ins)]/127)*20)
+    y = round((ins[math.random(1,#ins)]/127)*48)+10
+    a = round((ins[math.random(1,#ins)]/127)*16*bang)
+    b = round((ins[math.random(1,#ins)]/127)*16*bang)
+    type = math.random(1,3)
+    screen.level(lvl)
+    screen.move(x,y)
+    if type == 1 then
+      screen.rect(x,y,a,b)
+    elseif type == 2 and bang==1 then
+      screen.line(x,y,a,b)
+    elseif type == 2 and bang>1 then
+      screen.arc(x,y,a,b,lvl)
+    else
+      screen.circle(x,y,a/3)
+      screen.fill()
+    end
+    
+    if math.random(1,2)>1 then
+      screen.stroke()
+    else
+      screen.fill()
+    end
+  end
+  
+end
+
+
+function screenClear()
+  local rotate = 0
+  if rotateCounter ~= 0 then
+    print(rotateCounter)
+    rotate = 360-rotateCounter
+    screen.rotate(0*math.pi/180)
+    rotateCounter=0
+    print(rotate)
+  end
+  screen.clear()
+  screen.level(0)
+  screen.move(0,0)
+  screen.rect(0,0,128,64)
+  screen.fill()
+end
+
+function noteDrawDsrs(x,y)
+  screen.level(1)
+  screen.rect(x,y,25,5)
+  screen.fill()
+  screen.rect(x,y+13,25,17)
+  screen.fill()
+  
+  local val1 = params:get(midiNoteStarts[noteOutSel])
+  local val2 = params:get(midiNoteEnds[noteOutSel])
+  local sel = 3
+  
+  if noteSelUI == 1 then
+  elseif noteSelUI == 2 then
+  else
+  end
+  
+  for i=1,6 do -- draw DSR in
+    if val1 == i or val2 == i then
+      screen.level(8)
+    else
+      screen.level(0)
+    end
+    screen.rect(x+21-(i-1)*4,y+1,3,3)
+    screen.fill()
+  end
+
+  
+  for i=7,12 do
+    if val1 == i or val2 == i then
+      screen.level(8)
+    else
+      screen.level(0)
+    end
+    screen.rect(x+21-(i-7)*4,y+14,3,3)
+    screen.fill()
+  end
+  
+  for i=13,18 do
+    if val1 == i or val2 == i then
+      screen.level(8)
+    else
+      screen.level(0)
+    end
+    screen.rect(x+21-(i-13)*4,y+18,3,3)
+    screen.fill()
+  end
+
+  for i=19,24 do
+    if val1 == i or val2 == i then
+      screen.level(8)
+    else
+      screen.level(0)
+    end
+    screen.rect(x+21-(i-19)*4,y+22,3,3)
+    screen.fill()
+  end
+
+  for i=25,30 do
+    if val1 == i or val2 == i then
+      screen.level(8)
+    else
+      screen.level(0)
+    end
+    screen.rect(x+21-(i-25)*4,y+26,3,3)
+    screen.fill()
+  end
+  
+end
+
 
 
 function mmDrawVis(x,y)
@@ -1628,6 +1834,10 @@ function updateImMidiOutput()
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imDsrOuts[1]
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+        if audioOut==1 then
+          engine.hz(midi_to_hz(activeNotes[i]))
+        end
+        drawViz(4)
       end
     else -- MIDI CC
       local outCC = params:get("imDAC1Midi")-1
@@ -1645,6 +1855,10 @@ function updateImMidiOutput()
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imDsrOutsProc[1]
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+        if audioOut==1 then
+          engine.hz(midi_to_hz(activeNotes[i]))
+        end
+        drawViz(4)
       end
     else -- MIDI CC
       local outCC = params:get("imDAC1pMidi")-1
@@ -1663,6 +1877,10 @@ function updateImMidiOutput()
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imDsrOuts[2]
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+        if audioOut==1 then
+          engine.hz(midi_to_hz(activeNotes[i]))
+        end
+        drawViz(4)
       end
     else -- MIDI CC
       local outCC = params:get("imDAC2Midi")-1
@@ -1681,6 +1899,10 @@ function updateImMidiOutput()
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imDsrOutsProc[2]
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+        if audioOut==1 then
+          engine.hz(midi_to_hz(activeNotes[i]))
+        end
+        drawViz(4)
       end
     else -- MIDI CC
       local outCC = params:get("imDAC2pMidi")-1
@@ -1699,6 +1921,10 @@ function updateImMidiOutput()
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imDsrOuts[3]
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+        if audioOut==1 then
+          engine.hz(midi_to_hz(activeNotes[i]))
+        end
+        drawViz(4)
       end
     else -- MIDI CC
       local outCC = params:get("imDAC3Midi")-1
@@ -1716,6 +1942,10 @@ function updateImMidiOutput()
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imDsrOutsProc[3]
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+        if audioOut==1 then
+          engine.hz(midi_to_hz(activeNotes[i]))
+        end
+        drawViz(4)
       end
     else -- MIDI CC
       local outCC = params:get("imDAC3pMidi")-1
@@ -1734,6 +1964,10 @@ function updateImMidiOutput()
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imMixOut
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+        if audioOut==1 then
+          engine.hz(midi_to_hz(activeNotes[i]))
+        end
+        drawViz(4)
       end
     else -- MIDI CC
       local outCC = params:get("imMixMidi")-1
@@ -1751,6 +1985,10 @@ function updateImMidiOutput()
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imMixOutProc
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+        if audioOut==1 then
+          engine.hz(midi_to_hz(activeNotes[i]))
+        end
+        drawViz(4)
       end
     else -- MIDI CC
       local outCC = params:get("imMixpMidi")-1
@@ -1775,6 +2013,10 @@ function updateDcMidiOutput()
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = dcOut
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+        if audioOut==1 then
+          engine.hz(midi_to_hz(activeNotes[i]))
+        end
+        drawViz(4)
       end
     else -- MIDI CC
       local outCC = params:get("dcOutMidi")-1
@@ -1792,6 +2034,10 @@ function updateDcMidiOutput()
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = dcOutProc
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+        if audioOut==1 then
+          engine.hz(midi_to_hz(activeNotes[i]))
+        end
+        drawViz(4)
       end
     else -- MIDI CC
       local outCC = params:get("dcOutpMidi")-1
@@ -1816,6 +2062,10 @@ function updateMmMidiOutput()
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = mmOut
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+        if audioOut==1 then
+          engine.hz(midi_to_hz(activeNotes[i]))
+        end
+        drawViz(4)
       end
     else -- MIDI CC
       local outCC = params:get("mmOutMidi")-1
@@ -1833,6 +2083,10 @@ function updateMmMidiOutput()
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = mmOutProc
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+        if audioOut==1 then
+          engine.hz(midi_to_hz(activeNotes[i]))
+        end
+        drawViz(4)
       end
     else -- MIDI CC
       local outCC = params:get("mmOutpMidi")-1
@@ -1893,6 +2147,10 @@ function update_midi()
 end
 
 
+function midi_to_hz(note)
+  return (440/32) * (2 ^ ((note - 9) / 12))
+end
+
 -- round
 function round(n)
   return n % 1 >= 0.5 and math.ceil(n) or math.floor(n)
@@ -1919,3 +2177,10 @@ function intoBinary(n)
 	end
 	return string.reverse(binNum)
 end  
+
+
+function cleanup ()
+  screenClear()
+  allNotesOff()
+  print("Ken Stone 4 ever!")
+end
