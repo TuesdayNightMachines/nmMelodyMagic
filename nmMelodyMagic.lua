@@ -1,5 +1,5 @@
 -- nmMelodyMagic
--- 0.5.2 @NightMachines
+-- 0.5.3 @NightMachines
 -- llllllll.co/t/nmmelodymagic/
 --
 -- Port of Ken Stone's CV
@@ -32,7 +32,7 @@
 --norns.enc.accel(0,false)
 
 local selPage = 1
-local pageLabels = {"Infinite Melody >","< Diatonic Converter >", "< Output Processing >", "< Modulo Magic >", "< Output Processing"}
+local pageLabels = {"Infinite Melody >","< Diatonic Converter >", "< Output Processing >", "< Modulo Magic >", "< Output Processing >", "< Modulation >", "<"}
 local onOff = {"on", "off"}
 local plusMin = {"+", "-"}
 local intExt = {"int", "ext"}
@@ -44,10 +44,15 @@ local midiOuts = {}
 local midiChs = {}
 local midiSources = {"imDAC1Midi","imDAC1pMidi","imDAC2Midi","imDAC2pMidi","imDAC3Midi", "imDAC3pMidi", "imMixMidi", "imMixpMidi", "dcOutMidi", "dcOutpMidi", "mmOutMidi", "mmOutpMidi"}
 local midiSourcChs = {"imDAC1Ch","imDAC1pCh","imDAC2Ch","imDAC2pCh","imDAC3Ch","imDAC3pCh", "imMixCh", "imMixpCh", "dcOutCh", "dcOutpCh","mmOutCh","mmOutpCh"}
-local activeNotes = {0,0,0,0,0,0,0,0,0,0,0,0}
+local activeNotes = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1}
 local midiPanic = 0
-local gateLenIds = {"imDAC1Gate","imDAC1pGate","imDAC2Gate","imDAC2pGate","imDAC3Gate","imDAC3pGate","imMixGate","imMixpGate","dcOutGate","dcOutpGate","mmOutGate","mmOutpGate"}
+local midiNoteStarts = {"imDAC1Start","imDAC1pStart","imDAC2Start","imDAC2pStart","imDAC3Start","imDAC3pStart","imMixStart","imMixpStart","dcOutStart","dcOutpStart","mmOutStart","mmOutpStart"}
+local midiNoteEnds = {"imDAC1End","imDAC1pEnd","imDAC2End","imDAC2pEnd","imDAC3End","imDAC3pEnd","imMixEnd","imMixpEnd","dcOutEnd","dcOutpEnd","mmOutEnd","mmOutpEnd"}
 local midiChIds = {"imDAC1Ch","imDAC1pCh","imDAC2Ch","imDAC2pCh","imDAC3Ch","imDAC3pCh","imMixCh","imMixpCh","dcOutCh","dcOutpCh","mmOutCh","mmOutpCh"}
+
+local allBits = {}
+local allBitNames = {"DSR In 1", "DSR In 2", "DSR In 3", "DSR In 4", "DSR In 5", "DSR In 6", "DAC1 1", "DAC1 2", "DAC1 3", "DAC1 4", "DAC1 5", "DAC1 6", "DAC2 1", "DAC2 2", "DAC2 3", "DAC2 4", "DAC2 5", "DAC2 6", "DAC3 1", "DAC3 2", "DAC3 3", "DAC3 4", "DAC3 5", "DAC3 6", "Mix 1", "Mix 2", "Mix 3", "Mix 4", "Mix 5", "Mix 6"}
+
 
 --INFINITE MELODY VARIABLES
 
@@ -113,6 +118,17 @@ local mmStepCount = 0
 local out2SelUI = 1
 
 
+-- MODULATION PAGE
+local modSelUI = 1
+local modSources = {"DAC1", "DAC1-p", "DAC2", "DAC2-p", "DAC3", "DAC3-p","Mix","Mix-p","Dia", "Dia-p", "Modulo", "Modulo-p","Manual 1", "Manual 2", "Manual 3"}
+local modTargets = {"Clock", "Advance", "Mode", "Sense", "Root", "Scale", "Scaling", "Initiation", "Offset", "Step Size", "Steps"}
+local modTgtIds = {"imClockRate","imAdvanceRate", "imRndMode", "imSense", "dcRoot", "dcMajMin", "dcScaling", "mmInit", "mmOff", "mmStepSize", "mmSteps"}
+local modPrevVals = {
+  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+}
+
 
 function init()
   for id,device in pairs(midi.vports) do
@@ -133,6 +149,11 @@ function init()
     else
       midiChs[i]= i-1
     end
+  end
+  
+
+  for i=1,30 do
+    allBits[i]=0
   end
 
   params:add_separator("nmMelodyMagic") 
@@ -163,7 +184,7 @@ function init()
   
   params:add_separator("Output Processing")
   params:add_control("imDsrOutsProcAtt1", "DAC 1 Attenuverter", controlspec.new(-1.0,1.0,"lin",0.05,1.0,"",1/40,false))
-  params:add{type = "number", id = "imDsrOutsProcOff1", name = "DAC 1 Offset", min = 0, max = 127, default = 0, wrap = false}
+  params:add{type = "number", id = "imDsrOutsProcOff1", name = "DAC 1 Offset", min = 0, max = 127, default = 25, wrap = false}
   params:add_control("imDsrOutsProcAtt2", "DAC 2 Attenuverter", controlspec.new(-1.0,1.0,"lin",0.05,1.0,"",1/40,false))
   params:add{type = "number", id = "imDsrOutsProcOff2", name = "DAC 2 Offset", min = 0, max = 127, default = 0, wrap = false}
   params:add_control("imDsrOutsProcAtt3", "DAC 3 Attenuverter", controlspec.new(-1.0,1.0,"lin",0.05,1.0,"",1/40,false))
@@ -208,30 +229,56 @@ function init()
   params:add{type = "number", id = "mmOutProcOff", name = "Modulo Out Offset", min = 0, max = 127, default = 0, wrap = false}
  
   
-
-  params:add_group("Gate Lengths",13)
-  params:add_separator("DSRIn bit to set note off:")
-  params:add{type = "number", id = "imDAC1Gate", name = "DAC 1 Gate", min = 1, max = 6, default = 1, wrap = false}
-  params:add{type = "number", id = "imDAC1pGate", name = "DAC 1 Proc. Gate", min = 1, max = 6, default = 1, wrap = false}
-  params:add{type = "number", id = "imDAC2Gate", name = "DAC 2 Gate", min = 1, max = 6, default = 2, wrap = false}
-  params:add{type = "number", id = "imDAC2pGate", name = "DAC 2 Proc. Gate", min = 1, max = 6, default = 2, wrap = false}
-  params:add{type = "number", id = "imDAC3Gate", name = "DAC 3 Gate", min = 1, max = 6, default = 3, wrap = false}
-  params:add{type = "number", id = "imDAC3pGate", name = "DAC 3 Proc. Gate", min = 1, max = 6, default = 3, wrap = false}
-  params:add{type = "number", id = "imMixGate", name = "Mix Out Gate", min = 1, max = 6, default = 4, wrap = false}
-  params:add{type = "number", id = "imMixpGate", name = "Mix Proc. Out Gate", min = 1, max = 6, default = 4, wrap = false}
-  params:add{type = "number", id = "dcOutGate", name = "Diatonic Out Gate", min = 1, max = 6, default = 5, wrap = false}
-  params:add{type = "number", id = "dcOutpGate", name = "Diatonic Proc. Out Gate", min = 1, max = 6, default = 5, wrap = false}
-  params:add{type = "number", id = "mmOutGate", name = "Modulo Out Gate", min = 1, max = 6, default = 6, wrap = false}
-  params:add{type = "number", id = "mmOutpGate", name = "Modulo Proc. Out Gate", min = 1, max = 6, default = 6, wrap = false}
+  params:add_group("Modulation",12)
+  params:add{type = "option", id = "mod1Src", name = "Modulation 1 Source", options = modSources, default = 1}
+  params:add_control("mod1Amt", "Modulation 1 Amount", controlspec.new(-1.0,1.0,"lin",0.05, 0.0,"",1/40,false))
+  params:add{type = "option", id = "mod1Tgt", name = "Modulation 1 Target", options = modTargets, default = 1}
+  params:add{type = "option", id = "mod2Src", name = "Modulation 2 Source", options = modSources, default = 1}
+  params:add_control("mod2Amt", "Modulation 2 Amount", controlspec.new(-1.0,1.0,"lin",0.05, 0.0,"",1/40,false))
+  params:add{type = "option", id = "mod2Tgt", name = "Modulation 2 Target", options = modTargets, default = 1}
+  params:add{type = "option", id = "mod3Src", name = "Modulation 3 Source", options = modSources, default = 1}
+  params:add_control("mod3Amt", "Modulation 3 Amount", controlspec.new(-1.0,1.0,"lin",0.05, 0.0,"",1/40,false))
+  params:add{type = "option", id = "mod3Tgt", name = "Modulation 3 Target", options = modTargets, default = 1}
+  params:add{type = "number", id = "modManVal1", name = "Manual Value 1", min = 0, max = 127, default = 0, wrap = false}
+  params:add{type = "number", id = "modManVal2", name = "Manual Value 2", min = 0, max = 127, default = 0, wrap = false}
+  params:add{type = "number", id = "modManVal3", name = "Manual Value 3", min = 0, max = 127, default = 0, wrap = false}
+  
+  
+  params:add_group("MIDI Note Settings",25)
+  params:add_separator("DSR bits to set note on/off")
+  params:add{type = "option", id = "imDAC1Start", name = "DAC 1 Start", options = allBitNames, default = 1, wrap = false}
+  params:add{type = "option", id = "imDAC1End", name = "DAC 1 End", options = allBitNames, default = 1, wrap = false}
+  params:add{type = "option", id = "imDAC1pStart", name = "DAC 1 Proc. Start", options = allBitNames, default = 7, wrap = false}
+  params:add{type = "option", id = "imDAC1pEnd", name = "DAC 1 Proc. End", options = allBitNames, default = 18, wrap = false}
+  params:add{type = "option", id = "imDAC2Start", name = "DAC 2 Start", options = allBitNames, default = 2, wrap = false}
+  params:add{type = "option", id = "imDAC2End", name = "DAC 2 End", options = allBitNames, default = 2, wrap = false}
+  params:add{type = "option", id = "imDAC2pStart", name = "DAC 2 Proc. Start", options = allBitNames, default = 2, wrap = false}
+  params:add{type = "option", id = "imDAC2pEnd", name = "DAC 2 Proc. End", options = allBitNames, default = 2, wrap = false}
+  params:add{type = "option", id = "imDAC3Start", name = "DAC 3 Start", options = allBitNames, default = 3, wrap = false}
+  params:add{type = "option", id = "imDAC3End", name = "DAC 3 End", options = allBitNames, default = 3, wrap = false}
+  params:add{type = "option", id = "imDAC3pStart", name = "DAC 3 Proc. Start", options = allBitNames, default = 3, wrap = false}
+  params:add{type = "option", id = "imDAC3pEnd", name = "DAC 3 Proc. End", options = allBitNames, default = 3, wrap = false}
+  params:add{type = "option", id = "imMixStart", name = "Mix Out Start", options = allBitNames, default = 4, wrap = false}
+  params:add{type = "option", id = "imMixEnd", name = "Mix Out End", options = allBitNames, default = 4, wrap = false}
+  params:add{type = "option", id = "imMixpStart", name = "Mix Proc. Out Start", options = allBitNames, default = 4, wrap = false}
+  params:add{type = "option", id = "imMixpEnd", name = "Mix Proc. Out End", options = allBitNames, default = 4, wrap = false}
+  params:add{type = "option", id = "dcOutStart", name = "Diatonic Out Start", options = allBitNames, default = 5, wrap = false}
+  params:add{type = "option", id = "dcOutEnd", name = "Diatonic Out End", options = allBitNames, default = 5, wrap = false}
+  params:add{type = "option", id = "dcOutpStart", name = "Diatonic P. Out Start", options = allBitNames, default = 5, wrap = false}
+  params:add{type = "option", id = "dcOutpEnd", name = "Diatonic P. Out End", options = allBitNames, default = 5, wrap = false}
+  params:add{type = "option", id = "mmOutStart", name = "Modulo Out Start", options = allBitNames, default = 6, wrap = false}
+  params:add{type = "option", id = "mmOutEnd", name = "Modulo Out End", options = allBitNames, default = 6, wrap = false}
+  params:add{type = "option", id = "mmOutpStart", name = "Modulo P. Out Start", options = allBitNames, default = 6, wrap = false}
+  params:add{type = "option", id = "mmOutpEnd", name = "Modulo P. Out End", options = allBitNames, default = 6, wrap = false}
   
   
   
   
   params:add_group("MIDI Output Settings",24)
   params:add{type = "option", id = "imDAC1Midi", name = "DAC 1 Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC1Ch", name = "DAC 1 Channel", options = midiChs, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC1pMidi", name = "DAC 1 Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC1pCh", name = "DAC 1 Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC1Ch", name = "DAC 1 Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC1pMidi", name = "DAC 1 Proc. Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC1pCh", name = "DAC 1 Proc. Channel", options = midiChs, default = 2, wrap = false, action = function(x) allNotesOff() end}
  
   params:add{type = "option", id = "imDAC2Midi", name = "DAC 2 Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
   params:add{type = "option", id = "imDAC2Ch", name = "DAC 2 Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
@@ -315,7 +362,7 @@ function imClockIn()
 end
 
 function imClockPulse()
-  notesOff()
+  --notesOff()
   local tempArray = imDsrIn
   for i=6,2,-1 do
     imDsrIn[i] = tempArray[i-1]
@@ -323,6 +370,9 @@ function imClockPulse()
   imDsrIn[1]=imNoiseVal
 
   imDsrInString = imDsrIn[6]..imDsrIn[5]..imDsrIn[4]..imDsrIn[3]..imDsrIn[2]..imDsrIn[1]
+  for x=1,6 do
+    allBits[x]=tonumber(string.sub(string.reverse(imDsrInString),x,x))
+  end
 end
 
 
@@ -493,9 +543,19 @@ function out2SelColor(x)
   end
 end
 
+function modSelColor(x)
+  if x== modSelUI then
+    return 15
+  else
+    return 1
+  end
+end
+
+
 
 function updateImOut()
-
+  modulate()
+  
    -- IM DSR DAC outs
   for d=1,3 do
     local dsr = ""
@@ -503,7 +563,11 @@ function updateImOut()
       dsr=imDsrBits[i][d]..dsr -- reverse array order
     end
     imDsrStrings[d] = dsr
-    --print(dsr.." = "..tonumber(dsr,2))
+    
+    for x=1,6 do
+      allBits[x+(6*d)]=tonumber(string.sub(string.reverse(dsr),x,x))
+    end
+
     imDsrOuts[d] = tonumber(dsr,2)
     imDsrOutsProc[d] = util.clamp(round(imDsrOuts[d]*params:get("imDsrOutsProcAtt"..d)+params:get("imDsrOutsProcOff"..d)),0,127)
   end
@@ -515,6 +579,11 @@ function updateImOut()
     imDsrStrings[4] = imDsrBits[i][4]..imDsrStrings[4]
     mix = mix + (imDsrBits[i][4]*(params:get("imMix"..i)))
   end
+  
+  for x=1,6 do
+      allBits[x+24]=tonumber(string.sub(string.reverse(imDsrStrings[4]),x,x))
+  end
+  
   imMixOut = util.clamp(mix,0,127) -- clamp to 0-127
   imMixOutProc = util.clamp(round(imMixOut*params:get("imMixOutProcAtt")+params:get("imMixOutProcOff")),0,127)
   
@@ -533,6 +602,7 @@ end
 
 function updateDcOut()
   -- DC OUT
+  modulate()
   
   dcStringNote = ""
   dcStringOctave = ""
@@ -640,7 +710,7 @@ end
 
 
 function updateMmOut()
-  
+  modulate()
   -- MODULO MAGIC OUT
 --  local mmTracker = 0
 
@@ -681,6 +751,85 @@ function updateMmOut()
   updateMmMidiOutput()
   
 end
+
+
+
+
+
+function modulate()
+  local val = 0
+  local outVal = 0
+  
+  for i=1,3 do
+    if params:get("mod"..i.."Src") == 1 then
+      val = imDsrOuts[1] * params:get("mod"..i.."Amt")
+      outVal = val - modPrevVals[i][1]
+      modPrevVals[i][1] = val
+    elseif params:get("mod"..i.."Src") == 2 then
+      val = imDsrOutsProc[1] * params:get("mod"..i.."Amt")
+      outVal = val - modPrevVals[i][2]
+      modPrevVals[i][2] = val
+    elseif params:get("mod"..i.."Src") == 3 then
+      val = imDsrOuts[2] * params:get("mod"..i.."Amt")
+      outVal = val - modPrevVals[i][3]
+      modPrevVals[i][3] = val
+    elseif params:get("mod"..i.."Src") == 4 then
+      val = imDsrOutsProc[2] * params:get("mod"..i.."Amt")
+      outVal = val - modPrevVals[i][4]
+      modPrevVals[i][4] = val
+    elseif params:get("mod"..i.."Src") == 5 then
+      val = imDsrOuts[3] * params:get("mod"..i.."Amt")
+      outVal = val - modPrevVals[i][5]
+      modPrevVals[i][5] = val
+    elseif params:get("mod"..i.."Src") == 6 then
+      val = imDsrOutsProc[3] * params:get("mod"..i.."Amt")
+      outVal = val - modPrevVals[i][6]
+      modPrevVals[i][6] = val
+    elseif params:get("mod"..i.."Src") == 7 then
+      val = imMixOut * params:get("mod"..i.."Amt")
+      outVal = val - modPrevVals[i][7]
+      modPrevVals[i][7] = val
+    elseif params:get("mod"..i.."Src") == 8 then
+      val = imMixOutProc * params:get("mod"..i.."Amt")
+      outVal = val - modPrevVals[i][8]
+      modPrevVals[i][8] = val
+    elseif params:get("mod"..i.."Src") == 9 then
+      val = dcOut * params:get("mod"..i.."Amt")
+      outVal = val - modPrevVals[i][9]
+      modPrevVals[i][9] = val
+    elseif params:get("mod"..i.."Src") == 10 then
+      val = dcOutProc * params:get("mod"..i.."Amt")
+      outVal = val - modPrevVals[i][10]
+      modPrevVals[i][10] = val
+    elseif params:get("mod"..i.."Src") == 11 then
+      val = mmOut * params:get("mod"..i.."Amt")
+      outVal = val - modPrevVals[i][11]
+      modPrevVals[i][11] = val
+    elseif params:get("mod"..i.."Src") == 12 then
+      val = mmOutProc * params:get("mod"..i.."Amt")
+      outVal = val - modPrevVals[i][12]
+      modPrevVals[i][12] = val
+    elseif params:get("mod"..i.."Src") == 13 then
+      val = params:get("modManVal1") * params:get("mod"..i.."Amt")
+      outVal = val - modPrevVals[i][13]
+      modPrevVals[i][13] = val
+    elseif params:get("mod"..i.."Src") == 14 then
+      val = params:get("modManVal2") * params:get("mod"..i.."Amt")
+      outVal = val - modPrevVals[i][14]
+      modPrevVals[i][14] = val
+    elseif params:get("mod"..i.."Src") == 15 then
+      val = params:get("modManVal3") * params:get("mod"..i.."Amt")
+      outVal = val - modPrevVals[i][15]
+      modPrevVals[i][15] = val
+    end
+    
+    params:delta(modTgtIds[params:get("mod"..i.."Tgt")], round(outVal))
+--    print("tgt: "..modTgtIds[params:get("mod"..i.."Tgt")].."outval: "..round(outVal))
+  end
+  
+end
+
+
 
 
 -- BUTTONS
@@ -724,7 +873,7 @@ end
 -- ENCODERS
 function enc(id,delta)
   if id==1 then
-    selPage = util.clamp(selPage + delta, 1,5)
+    selPage = util.clamp(selPage + delta, 1,6)
   elseif id==2 then
     if selPage == 1 then
       imSelUI = util.clamp(imSelUI + delta,1,12) -- select ui element
@@ -736,6 +885,8 @@ function enc(id,delta)
       mmSelUI = util.clamp(mmSelUI + delta,1,7+mmSelOffset)
     elseif selPage == 5 then
       out2SelUI = util.clamp(out2SelUI + delta,1,2)
+    elseif selPage == 6 then
+      modSelUI = util.clamp(modSelUI + delta,1,12)
     end
     
     
@@ -824,6 +975,34 @@ function enc(id,delta)
         params:delta("mmOutProcAtt",delta)
       elseif out2SelUI == 2 then
         params:delta("mmOutProcOff",delta)
+      end
+    
+    elseif selPage == 6 then -- Modulation
+      
+      if modSelUI == 1 then
+        params:delta("mod1Src",delta)
+      elseif modSelUI == 2 then
+        params:delta("mod1Amt",delta)
+      elseif modSelUI == 3 then
+        params:delta("mod1Tgt",delta)
+      elseif modSelUI == 4 then
+        params:delta("mod2Src",delta)
+      elseif modSelUI == 5 then
+        params:delta("mod2Amt",delta)
+      elseif modSelUI == 6 then
+        params:delta("mod2Tgt",delta)
+      elseif modSelUI == 7 then
+        params:delta("mod3Src",delta)
+      elseif modSelUI == 8 then
+        params:delta("mod3Amt",delta)
+      elseif modSelUI == 9 then
+        params:delta("mod3Tgt",delta)
+      elseif modSelUI == 10 then
+        params:delta("modManVal1",delta)
+      elseif modSelUI == 11 then
+        params:delta("modManVal2",delta)
+      elseif modSelUI == 12 then
+        params:delta("modManVal3",delta)
       end
     
     
@@ -1109,12 +1288,86 @@ function redraw()
     
     --- BOTTOM
     screen.level(1)
-    screen.rect(0,50,128,14)
+    screen.rect(0,57,128,14)
     screen.fill()
     screen.level(4)
-    screen.move(0,56)
+    screen.move(0,63)
     screen.text("Mod-p: "..mmOutProc)
+    
+    
+  elseif selPage == 6 then -- modulation
+    --- TOP
+    screen.level(1)
+    screen.rect(0,0,128,7)
+    screen.fill()
+    screen.level(4)
+    screen.move(64,5)
+    screen.text_center(pageLabels[selPage])
+
+    --- MIDDLE
+    screen.level(1)
+    screen.move(5,14)
+    screen.text("Source")
+    screen.move(48,14)
+    screen.text("Amount")
+    screen.move(85,14)
+    screen.text("Target")
+    screen.move(0,17)
+    screen.line_rel(128,0)
+    screen.stroke()
+    
+    screen.level(modSelColor(1))
+    screen.move(5,25)
+    screen.text(modSources[params:get("mod1Src")])
+    screen.level(modSelColor(2))
+    screen.move(48,25)
+    screen.text(params:get("mod1Amt"))
+    screen.level(modSelColor(3))
+    screen.move(85,25)
+    screen.text(modTargets[params:get("mod1Tgt")])
+    
+    screen.level(modSelColor(4))
+    screen.move(5,32)
+    screen.text(modSources[params:get("mod2Src")])
+    screen.level(modSelColor(5))
+    screen.move(48,32)
+    screen.text(params:get("mod2Amt"))
+    screen.level(modSelColor(6))
+    screen.move(85,32)
+    screen.text(modTargets[params:get("mod2Tgt")])
+    
+    screen.level(modSelColor(7))
+    screen.move(5,39)
+    screen.text(modSources[params:get("mod3Src")])
+    screen.level(modSelColor(8))
+    screen.move(48,39)
+    screen.text(params:get("mod3Amt"))
+    screen.level(modSelColor(9))
+    screen.move(85,39)
+    screen.text(modTargets[params:get("mod3Tgt")])
+    
+    screen.level(modSelColor(10))
+    screen.move(5,50)
+    screen.text("M1: "..params:get("modManVal1"))
+    screen.level(modSelColor(11))
+    screen.move(48,50)
+    screen.text("M2: "..params:get("modManVal2"))
+    screen.level(modSelColor(12))
+    screen.move(85,50)
+    screen.text("M3: "..params:get("modManVal3"))
+    
+    --- BOTTOM
+    screen.level(1)
+    screen.rect(0,57,128,14)
+    screen.fill()
+    screen.level(4)
+    screen.move(0,63)
+    screen.text("")
+  
   end
+  
+  
+  
   
   if midiPanic == 1 then
     screen.level(10)
@@ -1363,12 +1616,19 @@ re:start()
 -- MIDI Stuff
 
 function updateImMidiOutput()
-
+  --notesOff()
+  
   if params:get("imDAC1Ch") > 1 then -- if output on
     if params:get("imDAC1Midi") == 1 then -- MIDI Note
-      midi_output:note_off(activeNotes[1], 100, params:get("imDAC1Ch")-1)
-      activeNotes[1] = imDsrOuts[1]
-      midi_output:note_on(activeNotes[1], 100, params:get("imDAC1Ch")-1)
+      local i=1
+      if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
+          midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
+          activeNotes[i]=-1
+          
+      elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
+        activeNotes[i] = imDsrOuts[1]
+        midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+      end
     else -- MIDI CC
       local outCC = params:get("imDAC1Midi")-1
         midi_output:cc(outCC,imDsrOuts[1],params:get("imDAC1Ch")-1)
@@ -1377,9 +1637,15 @@ function updateImMidiOutput()
 
   if params:get("imDAC1pCh") > 1 then -- if output on
     if params:get("imDAC1pMidi") == 1 then -- MIDI Note
-      midi_output:note_off(activeNotes[2], 100, params:get("imDAC1pCh")-1)
-      activeNotes[2] = imDsrOutsProc[1]
-      midi_output:note_on(activeNotes[2], 100, params:get("imDAC1pCh")-1)
+      local i=2
+      if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
+          midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
+          activeNotes[i]=-1
+          
+      elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
+        activeNotes[i] = imDsrOutsProc[1]
+        midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+      end
     else -- MIDI CC
       local outCC = params:get("imDAC1pMidi")-1
         midi_output:cc(outCC,imDsrOutsProc[1],params:get("imDAC1pCh")-1)
@@ -1389,9 +1655,15 @@ function updateImMidiOutput()
   
   if params:get("imDAC2Ch") > 1 then -- if output on
     if params:get("imDAC2Midi") == 1 then -- MIDI Note
-      midi_output:note_off(activeNotes[3], 100, params:get("imDAC2Ch")-1)
-      activeNotes[3] = imDsrOuts[2]
-      midi_output:note_on(activeNotes[3], 100, params:get("imDAC2Ch")-1)
+      local i=3
+      if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
+          midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
+          activeNotes[i]=-1
+          
+      elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
+        activeNotes[i] = imDsrOuts[2]
+        midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+      end
     else -- MIDI CC
       local outCC = params:get("imDAC2Midi")-1
         midi_output:cc(outCC,imDsrOuts[2],params:get("imDAC2Ch")-1)
@@ -1401,9 +1673,15 @@ function updateImMidiOutput()
   
   if params:get("imDAC2pCh") > 1 then -- if output on
     if params:get("imDAC2pMidi") == 1 then -- MIDI Note
-      midi_output:note_off(activeNotes[4], 100, params:get("imDAC2pCh")-1)
-      activeNotes[4] = imDsrOutsProc[2]
-      midi_output:note_on(activeNotes[4], 100, params:get("imDAC2pCh")-1)
+      local i=4
+      if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
+          midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
+          activeNotes[i]=-1
+          
+      elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
+        activeNotes[i] = imDsrOutsProc[2]
+        midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+      end
     else -- MIDI CC
       local outCC = params:get("imDAC2pMidi")-1
         midi_output:cc(outCC,imDsrOutsProc[2],params:get("imDAC2pCh")-1)
@@ -1413,9 +1691,15 @@ function updateImMidiOutput()
   
   if params:get("imDAC3Ch") > 1 then -- if output on
     if params:get("imDAC3Midi") == 1 then -- MIDI Note
-      midi_output:note_off(activeNotes[5], 100, params:get("imDAC3Ch")-1)
-      activeNotes[5] = imDsrOuts[3]
-      midi_output:note_on(activeNotes[5], 100, params:get("imDAC3Ch")-1)
+      local i=5
+      if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
+          midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
+          activeNotes[i]=-1
+          
+      elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
+        activeNotes[i] = imDsrOuts[3]
+        midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+      end
     else -- MIDI CC
       local outCC = params:get("imDAC3Midi")-1
         midi_output:cc(outCC,imDsrOuts[3],params:get("imDAC3Ch")-1)
@@ -1424,9 +1708,15 @@ function updateImMidiOutput()
 
   if params:get("imDAC3pCh") > 1 then -- if output on
     if params:get("imDAC3pMidi") == 1 then -- MIDI Note
-      midi_output:note_off(activeNotes[6], 100, params:get("imDAC3pCh")-1)
-      activeNotes[6] = imDsrOutsProc[3]
-      midi_output:note_on(activeNotes[6], 100, params:get("imDAC3pCh")-1)
+      local i=6
+      if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
+          midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
+          activeNotes[i]=-1
+          
+      elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
+        activeNotes[i] = imDsrOutsProc[3]
+        midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+      end
     else -- MIDI CC
       local outCC = params:get("imDAC3pMidi")-1
         midi_output:cc(outCC,imDsrOutsProc[3],params:get("imDAC3pCh")-1)
@@ -1436,9 +1726,15 @@ function updateImMidiOutput()
   
   if params:get("imMixCh") > 1 then -- if output on
     if params:get("imMixMidi") == 1 then -- MIDI Note
-      midi_output:note_off(activeNotes[7], 100, params:get("imMixCh")-1)
-      activeNotes[7] = imMixOut
-      midi_output:note_on(activeNotes[7], 100, params:get("imMixCh")-1)
+      local i=7
+      if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
+          midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
+          activeNotes[i]=-1
+          
+      elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
+        activeNotes[i] = imMixOut
+        midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+      end
     else -- MIDI CC
       local outCC = params:get("imMixMidi")-1
         midi_output:cc(outCC,imMixOut,params:get("imMixCh")-1)
@@ -1447,9 +1743,15 @@ function updateImMidiOutput()
 
   if params:get("imMixpCh") > 1 then -- if output on
     if params:get("imMixpMidi") == 1 then -- MIDI Note
-      midi_output:note_off(activeNotes[8], 100, params:get("imMixpCh")-1)
-      activeNotes[8] = imMixOutProc
-      midi_output:note_on(activeNotes[8], 100, params:get("imMixpCh")-1)
+      local i=8
+      if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
+          midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
+          activeNotes[i]=-1
+          
+      elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
+        activeNotes[i] = imMixOutProc
+        midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+      end
     else -- MIDI CC
       local outCC = params:get("imMixpMidi")-1
         midi_output:cc(outCC,imMixOutProc,params:get("imMixpCh")-1)
@@ -1461,11 +1763,19 @@ end
 
 
 function updateDcMidiOutput()
+  --notesOff()
+  
   if params:get("dcOutCh") > 1 then -- if output on
     if params:get("dcOutMidi") == 1 then -- MIDI Note
-      midi_output:note_off(activeNotes[9], 100, params:get("dcOutCh")-1)
-      activeNotes[9 ] = dcOut
-      midi_output:note_on(activeNotes[9], 100, params:get("dcOutCh")-1)
+      local i=9
+      if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
+          midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
+          activeNotes[i]=-1
+          
+      elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
+        activeNotes[i] = dcOut
+        midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+      end
     else -- MIDI CC
       local outCC = params:get("dcOutMidi")-1
         midi_output:cc(outCC,dcOut,params:get("dcOutCh")-1)
@@ -1474,9 +1784,15 @@ function updateDcMidiOutput()
 
   if params:get("dcOutpCh") > 1 then -- if output on
     if params:get("dcOutpMidi") == 1 then -- MIDI Note
-      midi_output:note_off(activeNotes[10], 100, params:get("dcOutpCh")-1)
-      activeNotes[10] = dcOutProc
-      midi_output:note_on(activeNotes[10], 100, params:get("dcOutpCh")-1)
+      local i=10
+      if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
+          midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
+          activeNotes[i]=-1
+          
+      elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
+        activeNotes[i] = dcOutProc
+        midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+      end
     else -- MIDI CC
       local outCC = params:get("dcOutpMidi")-1
         midi_output:cc(outCC,dcOutProc,params:get("dcOutpCh")-1)
@@ -1488,11 +1804,19 @@ end
 
 
 function updateMmMidiOutput()
+  --notesOff()
+  
   if params:get("mmOutCh") > 1 then -- if output on
     if params:get("mmOutMidi") == 1 then -- MIDI Note
-      midi_output:note_off(activeNotes[11], 100, params:get("mmOutCh")-1)
-      activeNotes[11] = mmOut
-      midi_output:note_on(activeNotes[11], 100, params:get("mmOutCh")-1)
+      local i=11
+      if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
+          midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
+          activeNotes[i]=-1
+          
+      elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
+        activeNotes[i] = mmOut
+        midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+      end
     else -- MIDI CC
       local outCC = params:get("mmOutMidi")-1
         midi_output:cc(outCC,mmOut,params:get("mmOutCh")-1)
@@ -1501,9 +1825,15 @@ function updateMmMidiOutput()
 
   if params:get("mmOutpCh") > 1 then -- if output on
     if params:get("mmOutpMidi") == 1 then -- MIDI Note
-      midi_output:note_off(activeNotes[12], 0, params:get("mmOutpCh")-1)
-      activeNotes[12] = mmOutProc
-      midi_output:note_on(activeNotes[12], 100, params:get("mmOutpCh")-1)
+      local i=12
+      if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
+          midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
+          activeNotes[i]=-1
+          
+      elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
+        activeNotes[i] = mmOutProc
+        midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
+      end
     else -- MIDI CC
       local outCC = params:get("mmOutpMidi")-1
         midi_output:cc(outCC,mmOutProc,params:get("mmOutpCh")-1)
@@ -1512,20 +1842,6 @@ function updateMmMidiOutput()
   
 end
 
-
-
-function notesOff()
-  for i=1,12 do
-    for j=1,6 do
-      if params:get(midiChIds[i]) > 1 then
-        if  imDsrIn[params:get(gateLenIds[i])] == 1 and activeNotes[i] ~= 0 then
-          midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
-          activeNotes[i]=0
-        end
-      end
-    end
-  end
-end
 
 
 
@@ -1538,9 +1854,12 @@ function allNotesOff()
   end
   
   for i=1,#activeNotes do
-    activeNotes[i]= 0
+    activeNotes[i]= -1
   end
 end
+
+
+
 
 
 function set_midi_output(x)
