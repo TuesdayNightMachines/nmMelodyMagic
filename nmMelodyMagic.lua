@@ -1,5 +1,5 @@
 -- nmMelodyMagic
--- 0.6.0 @NightMachines
+-- 0.6.3 @NightMachines
 -- llllllll.co/t/nmmelodymagic/
 --
 -- Port of Ken Stone's CV
@@ -10,16 +10,18 @@
 -- - Diatonic Converter
 -- - Modulo Magic
 -- 
--- Lots of parameters to adjust
--- in the EDIT menus!
--- 
--- K1: -
+-- Configure 'MIDI Output Settings'
+-- in the EDIT menu first!
+--
 -- E1: Switch Page
--- K2: Manual Clock Pulse
--- K1 + K2: MIDI Panic
 -- E2: Choose Parameter
--- K3: Manual Advance Pulse
 -- E3: Change Parameter
+--
+-- K1: Hold for Info
+-- K2: Manual Clock Pulse
+-- K3: Manual Advance Pulse
+-- K1 + K2: MIDI Panic
+-- K1 + K3: Save Patch
 -- 
 
 
@@ -35,7 +37,7 @@ engine.name = "PolyPerc"
 local audioOut = 1
 
 local selPage = 1
-local pageLabels = {"Infinite Melody >","< Diatonic Converter >", "< Output Processing >", "< Modulo Magic >", "< Output Processing >", "< Modulation >", "< MIDI Note Settings >", "< Visualizer"}
+local pageLabels = {"Infinite Melody >","< Diatonic Converter >", "< Output Processing >", "< Modulo Magic >", "< Output Processing >", "< Modulation >", "< MIDI Note On/off >", "< Visualizer"}
 local onOff = {"on", "off"}
 local plusMin = {"+", "-"}
 local intExt = {"int", "ext"}
@@ -55,6 +57,12 @@ local midiChIds = {"imDAC1Ch","imDAC1pCh","imDAC2Ch","imDAC2pCh","imDAC3Ch","imD
 
 local allBits = {}
 local allBitNames = {"DSR In 1", "DSR In 2", "DSR In 3", "DSR In 4", "DSR In 5", "DSR In 6", "DAC1 1", "DAC1 2", "DAC1 3", "DAC1 4", "DAC1 5", "DAC1 6", "DAC2 1", "DAC2 2", "DAC2 3", "DAC2 4", "DAC2 5", "DAC2 6", "DAC3 1", "DAC3 2", "DAC3 3", "DAC3 4", "DAC3 5", "DAC3 6", "Mix 1", "Mix 2", "Mix 3", "Mix 4", "Mix 5", "Mix 6"}
+
+local savedState = 0
+
+local rotateCounter = 0
+local xCounter = 0
+local xAdd = 0
 
 
 --INFINITE MELODY VARIABLES
@@ -137,8 +145,9 @@ local noteSelUI = 1
 local noteOutSel = 1
 
 
-
-
+-- MODERN ART PAGE
+local artSelUI = 1
+local artOn = 0
 
 
 function init()
@@ -170,12 +179,45 @@ function init()
   end
 
   params:add_separator("nmMelodyMagic")
+  params:add{type = "trigger", id = "loadDefault", name = "Load Default Settings", action=function(x) params:read(norns.state.data.."default.pset") end}
+  params:add{type = "trigger", id = "loadLaststate", name = "Load Last State Settings", action=function(x) params:read(norns.state.data.."laststate.pset") end}
   params:add{type = "option", id = "audioOut", name = "Audio Output", options = onOff, default = 1, action=function(x) audioOut=x end}
   params:add{type = "option", id = "midi_input", name = "Midi Input", options = devices, default = 2, action=set_midi_input}
   params:add{type = "option", id = "midi_output", name = "Midi Output", options = devices, default = 1, action=set_midi_output}
   
-  
   midi_output = midi.connect(params:get("midi_output"))
+  
+  
+  params:add_group("MIDI Output Settings",24)
+  params:add{type = "option", id = "imDAC1Midi", name = "DAC 1 Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC1Ch", name = "DAC 1 Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC1pMidi", name = "DAC 1 Proc. Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC1pCh", name = "DAC 1 Proc. Channel", options = midiChs, default = 2, wrap = false, action = function(x) allNotesOff() end}
+ 
+  params:add{type = "option", id = "imDAC2Midi", name = "DAC 2 Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC2Ch", name = "DAC 2 Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC2pMidi", name = "DAC 2 Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC2pCh", name = "DAC 2 Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+
+  params:add{type = "option", id = "imDAC3Midi", name = "DAC 3 Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC3Ch", name = "DAC 3 Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC3pMidi", name = "DAC 3 Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC3pCh", name = "DAC 3 Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+
+  params:add{type = "option", id = "imMixMidi", name = "Mix Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imMixCh", name = "Mix Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imMixpMidi", name = "Mix Proc. Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imMixpCh", name = "Mix Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+
+  params:add{type = "option", id = "dcOutMidi", name = "Diatonic Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "dcOutCh", name = "Diatonic Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "dcOutpMidi", name = "Diatonic Proc. Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "dcOutpCh", name = "Diatonic Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  
+  params:add{type = "option", id = "mmOutMidi", name = "Modulo Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "mmOutCh", name = "Modulo Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "mmOutpMidi", name = "Modulo Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "mmOutpCh", name = "Modulo Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
   
   
   
@@ -258,66 +300,31 @@ function init()
   params:add{type = "number", id = "modManVal3", name = "Manual Value 3", min = 0, max = 127, default = 0, wrap = false}
   
   
-  params:add_group("MIDI Note Settings",25)
-  params:add_separator("DSR bits to set note on/off")
-  params:add{type = "option", id = "imDAC1Start", name = "DAC 1 Start", options = allBitNames, default = 1, wrap = false}
-  params:add{type = "option", id = "imDAC1End", name = "DAC 1 End", options = allBitNames, default = 1, wrap = false}
-  params:add{type = "option", id = "imDAC1pStart", name = "DAC 1 Proc. Start", options = allBitNames, default = 7, wrap = false}
-  params:add{type = "option", id = "imDAC1pEnd", name = "DAC 1 Proc. End", options = allBitNames, default = 18, wrap = false}
-  params:add{type = "option", id = "imDAC2Start", name = "DAC 2 Start", options = allBitNames, default = 2, wrap = false}
-  params:add{type = "option", id = "imDAC2End", name = "DAC 2 End", options = allBitNames, default = 2, wrap = false}
-  params:add{type = "option", id = "imDAC2pStart", name = "DAC 2 Proc. Start", options = allBitNames, default = 2, wrap = false}
-  params:add{type = "option", id = "imDAC2pEnd", name = "DAC 2 Proc. End", options = allBitNames, default = 2, wrap = false}
-  params:add{type = "option", id = "imDAC3Start", name = "DAC 3 Start", options = allBitNames, default = 3, wrap = false}
-  params:add{type = "option", id = "imDAC3End", name = "DAC 3 End", options = allBitNames, default = 3, wrap = false}
-  params:add{type = "option", id = "imDAC3pStart", name = "DAC 3 Proc. Start", options = allBitNames, default = 3, wrap = false}
-  params:add{type = "option", id = "imDAC3pEnd", name = "DAC 3 Proc. End", options = allBitNames, default = 3, wrap = false}
-  params:add{type = "option", id = "imMixStart", name = "Mix Out Start", options = allBitNames, default = 4, wrap = false}
-  params:add{type = "option", id = "imMixEnd", name = "Mix Out End", options = allBitNames, default = 4, wrap = false}
-  params:add{type = "option", id = "imMixpStart", name = "Mix Proc. Out Start", options = allBitNames, default = 4, wrap = false}
-  params:add{type = "option", id = "imMixpEnd", name = "Mix Proc. Out End", options = allBitNames, default = 4, wrap = false}
-  params:add{type = "option", id = "dcOutStart", name = "Diatonic Out Start", options = allBitNames, default = 5, wrap = false}
-  params:add{type = "option", id = "dcOutEnd", name = "Diatonic Out End", options = allBitNames, default = 5, wrap = false}
-  params:add{type = "option", id = "dcOutpStart", name = "Diatonic P. Out Start", options = allBitNames, default = 5, wrap = false}
-  params:add{type = "option", id = "dcOutpEnd", name = "Diatonic P. Out End", options = allBitNames, default = 5, wrap = false}
-  params:add{type = "option", id = "mmOutStart", name = "Modulo Out Start", options = allBitNames, default = 6, wrap = false}
-  params:add{type = "option", id = "mmOutEnd", name = "Modulo Out End", options = allBitNames, default = 6, wrap = false}
-  params:add{type = "option", id = "mmOutpStart", name = "Modulo P. Out Start", options = allBitNames, default = 6, wrap = false}
-  params:add{type = "option", id = "mmOutpEnd", name = "Modulo P. Out End", options = allBitNames, default = 6, wrap = false}
-  
-  
-  
-  
-  params:add_group("MIDI Output Settings",24)
-  params:add{type = "option", id = "imDAC1Midi", name = "DAC 1 Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC1Ch", name = "DAC 1 Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC1pMidi", name = "DAC 1 Proc. Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC1pCh", name = "DAC 1 Proc. Channel", options = midiChs, default = 2, wrap = false, action = function(x) allNotesOff() end}
- 
-  params:add{type = "option", id = "imDAC2Midi", name = "DAC 2 Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC2Ch", name = "DAC 2 Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC2pMidi", name = "DAC 2 Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC2pCh", name = "DAC 2 Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
-
-  params:add{type = "option", id = "imDAC3Midi", name = "DAC 3 Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC3Ch", name = "DAC 3 Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC3pMidi", name = "DAC 3 Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC3pCh", name = "DAC 3 Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
-
-  params:add{type = "option", id = "imMixMidi", name = "Mix Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imMixCh", name = "Mix Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imMixpMidi", name = "Mix Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imMixpCh", name = "Mix Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
-
-  params:add{type = "option", id = "dcOutMidi", name = "Diatonic Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "dcOutCh", name = "Diatonic Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "dcOutpMidi", name = "Diatonic Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "dcOutpCh", name = "Diatonic Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  
-  params:add{type = "option", id = "mmOutMidi", name = "Modulo Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "mmOutCh", name = "Modulo Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "mmOutpMidi", name = "Modulo Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "mmOutpCh", name = "Modulo Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add_group("MIDI Note On/Off Settings",24)
+  params:add{type = "option", id = "imDAC1Start", name = "DAC 1 On", options = allBitNames, default = 7, wrap = false}
+  params:add{type = "option", id = "imDAC1End", name = "DAC 1 Off", options = allBitNames, default = 7, wrap = false}
+  params:add{type = "option", id = "imDAC1pStart", name = "DAC 1 Proc. On", options = allBitNames, default = 9, wrap = false}
+  params:add{type = "option", id = "imDAC1pEnd", name = "DAC 1 Proc. Off", options = allBitNames, default = 9, wrap = false}
+  params:add{type = "option", id = "imDAC2Start", name = "DAC 2 On", options = allBitNames, default = 13, wrap = false}
+  params:add{type = "option", id = "imDAC2End", name = "DAC 2 Off", options = allBitNames, default = 13, wrap = false}
+  params:add{type = "option", id = "imDAC2pStart", name = "DAC 2 Proc. On", options = allBitNames, default = 15, wrap = false}
+  params:add{type = "option", id = "imDAC2pEnd", name = "DAC 2 Proc. Off", options = allBitNames, default = 15, wrap = false}
+  params:add{type = "option", id = "imDAC3Start", name = "DAC 3 On", options = allBitNames, default = 19, wrap = false}
+  params:add{type = "option", id = "imDAC3End", name = "DAC 3 Off", options = allBitNames, default = 19, wrap = false}
+  params:add{type = "option", id = "imDAC3pStart", name = "DAC 3 Proc. On", options = allBitNames, default = 21, wrap = false}
+  params:add{type = "option", id = "imDAC3pEnd", name = "DAC 3 Proc. Off", options = allBitNames, default = 21, wrap = false}
+  params:add{type = "option", id = "imMixStart", name = "Mix Out On", options = allBitNames, default = 25, wrap = false}
+  params:add{type = "option", id = "imMixEnd", name = "Mix Out Off", options = allBitNames, default = 25, wrap = false}
+  params:add{type = "option", id = "imMixpStart", name = "Mix Proc. Out On", options = allBitNames, default = 27, wrap = false}
+  params:add{type = "option", id = "imMixpEnd", name = "Mix Proc. Out Off", options = allBitNames, default = 27, wrap = false}
+  params:add{type = "option", id = "dcOutStart", name = "Diatonic Out On", options = allBitNames, default = 10, wrap = false}
+  params:add{type = "option", id = "dcOutEnd", name = "Diatonic Out Off", options = allBitNames, default = 15, wrap = false}
+  params:add{type = "option", id = "dcOutpStart", name = "Diatonic P. Out On", options = allBitNames, default = 12, wrap = false}
+  params:add{type = "option", id = "dcOutpEnd", name = "Diatonic P. Out Off", options = allBitNames, default = 17, wrap = false}
+  params:add{type = "option", id = "mmOutStart", name = "Modulo Out On", options = allBitNames, default = 22, wrap = false}
+  params:add{type = "option", id = "mmOutEnd", name = "Modulo Out Off", options = allBitNames, default = 28, wrap = false}
+  params:add{type = "option", id = "mmOutpStart", name = "Modulo P. Out On", options = allBitNames, default = 24, wrap = false}
+  params:add{type = "option", id = "mmOutpEnd", name = "Modulo P. Out Off", options = allBitNames, default = 30, wrap = false}
   
   
   
@@ -325,6 +332,9 @@ function init()
   params:add_separator("Encoder Settings")
   params:add{type = "number", id = "encSens", name = "Encoder Sensitivity", min = 0, max = 16, default = 0, wrap = false, action=function(x) norns.enc.sens(0,x) end} 
   params:add{type = "option", id = "encAccel", name = "Encoder Acceleration", options = onOff, default = 1, wrap = false, action=function(x) if x==0 then norns.enc.accel(0,false) else norns.enc.accel(0,true) end end} 
+  
+  params:write(norns.state.data.."default.pset")
+  params:read(norns.state.data.."laststate.pset")
   
   
   if params:get("mmIns") == 11 then
@@ -861,6 +871,7 @@ function key(id,st)
       k1held = 1
     else
       k1held = 0
+      artOn = 0
     end
   elseif id==2 then
     if k1held == 0 then
@@ -879,13 +890,22 @@ function key(id,st)
       end
     end
   elseif id==3 then
-    if st==1 then
-      imAdvTick=1
-      imAdvancePulse()
+    if k1held==0 then
+      if st==1 then
+        imAdvTick=1
+        imAdvancePulse()
+      else
+        imAdvTick=0
+        for i=1,6 do
+          imAdvTicks[i]=0
+        end
+      end
     else
-      imAdvTick=0
-      for i=1,6 do
-        imAdvTicks[i]=0
+      if st==1 then
+        params:write(norns.state.data.."laststate.pset")
+        savedState = 1
+      else
+        savedState = 0
       end
     end
   end
@@ -916,6 +936,8 @@ function enc(id,delta)
       modSelUI = util.clamp(modSelUI + delta,1,12)
     elseif selPage == 7 then
       noteSelUI = util.clamp(noteSelUI + delta,1,3)
+    elseif selPage == 8 then
+      artSelUI = util.clamp(artSelUI + delta,1,#tips)
     end
     
     
@@ -1120,13 +1142,30 @@ function redraw()
     screen.fill()
     screen.level(4)
     screen.move(0,63)
-    screen.text("D1: "..imDsrOuts[1])
+    if params:get("imDAC1Midi") == 1 then
+      screen.text("D1: "..num2Note(imDsrOuts[1]))
+    else
+      screen.text("D1: "..imDsrOuts[1])
+    end
     screen.move(32,63)
-    screen.text("D2: "..imDsrOuts[2])
+    if params:get("imDAC2Midi") == 1 then
+      screen.text("D2: "..num2Note(imDsrOuts[2]))
+    else
+      screen.text("D2: "..imDsrOuts[2])
+    end
     screen.move(64,63)
-    screen.text("D3: "..imDsrOuts[3])
+    if params:get("imDAC3Midi") == 1 then
+      screen.text("D3: "..num2Note(imDsrOuts[3]))
+    else
+      screen.text("D3: "..imDsrOuts[3])
+    end
     screen.move(96,63)
-    screen.text("Mix: "..imMixOut)
+    if params:get("imMixMidi") == 1 then
+      screen.text("Mix: "..num2Note(imMixOut))
+    else
+      screen.text("Mix: "..imMixOut)
+    end
+
    
    
    
@@ -1181,7 +1220,12 @@ function redraw()
     screen.fill()
     screen.level(4)
     screen.move(0,63)
-    screen.text("Out: "..dcOut.." / "..dcMidiNotes[dcOut%12+1]..math.floor(dcOut/12)-1)
+    if params:get("dcOutMidi") == 1 then
+      screen.text("Out: "..num2Note(dcOut))
+    else
+      screen.text("Out: "..dcOut)
+    end
+    --screen.text("Out: "..dcOut.." / "..num2Note(dcOut))
   
     
   elseif selPage == 3 then -- output processors 1
@@ -1232,15 +1276,36 @@ function redraw()
     screen.fill()
     screen.level(4)
     screen.move(0,56)
-    screen.text("D1-p: "..imDsrOutsProc[1])
+    if params:get("imDAC1pMidi") == 1 then
+      screen.text("D1-p: "..num2Note(imDsrOutsProc[1]))
+    else
+      screen.text("D1-p: "..imDsrOutsProc[1])
+    end
     screen.move(42,56)
-    screen.text("D2-p: "..imDsrOutsProc[2])
+    if params:get("imDAC2pMidi") == 1 then
+      screen.text("D2-p: "..num2Note(imDsrOutsProc[2]))
+    else
+      screen.text("D2-p: "..imDsrOutsProc[2])
+    end
     screen.move(85,56)
-    screen.text("D3-p: "..imDsrOutsProc[3])
+    if params:get("imDAC3pMidi") == 1 then
+      screen.text("D3-p: "..num2Note(imDsrOutsProc[3]))
+    else
+      screen.text("D3-p: "..imDsrOutsProc[3])
+    end
     screen.move(0,63)
-    screen.text("Mix-p: "..imMixOutProc)
+    if params:get("imMixpMidi") == 1 then
+      screen.text("Mix-p: "..num2Note(imMixOutProc))
+    else
+      screen.text("Mix-p: "..imMixOutProc)
+    end
+
     screen.move(85,63)
-    screen.text("Dia-p: "..dcOutProc)
+    if params:get("dcOutpMidi") == 1 then
+      screen.text("Dia-p: "..num2Note(dcOutProc))
+    else
+      screen.text("Dia-p: "..dcOutProc)
+    end
 
     
     
@@ -1296,7 +1361,12 @@ function redraw()
     screen.fill()
     screen.level(4)
     screen.move(0,63)
-    screen.text("Out: "..mmOut)
+    if params:get("mmOutMidi") == 1 then
+      screen.text("Out: "..num2Note(mmOut))
+    else
+      screen.text("Out: "..mmOut)
+    end
+    --screen.text("Out: "..mmOut.." / "..num2Note(mmOut))
     screen.move(96,63)
     screen.text("Step: "..mmStepCount)
     
@@ -1326,7 +1396,12 @@ function redraw()
     screen.fill()
     screen.level(4)
     screen.move(0,63)
-    screen.text("Mod-p: "..mmOutProc)
+    if params:get("mmOutpMidi") == 1 then
+      screen.text("Mod-p: "..num2Note(mmOutProc))
+    else
+      screen.text("Mod-p: "..mmOutProc)
+    end
+    --screen.text("Mod-p: "..mmOutProc)
     
     
   elseif selPage == 6 then -- modulation
@@ -1400,7 +1475,7 @@ function redraw()
     screen.text("")
     
     
-    elseif selPage == 7 then -- midi note settings
+  elseif selPage == 7 then -- midi note settings
     screenClear()
     
     --- TOP
@@ -1419,11 +1494,11 @@ function redraw()
     
     screen.level(noteSelColor(2))
     screen.move(32,21)
-    screen.text("Start: "..params:get(midiNoteStarts[noteOutSel]))
+    screen.text("Note On: "..allBitNames[params:get(midiNoteStarts[noteOutSel])])
     
     screen.level(noteSelColor(3))
     screen.move(32,28)
-    screen.text("End: "..params:get(midiNoteEnds[noteOutSel]))
+    screen.text("Note Off: "..allBitNames[params:get(midiNoteEnds[noteOutSel])])
     
     noteDrawDsrs(0,9)
     
@@ -1441,6 +1516,9 @@ function redraw()
       drawViz(1)
   end
   
+  if k1held == 1 then
+    drawManual(selPage)
+  end
   
   
   
@@ -1453,13 +1531,336 @@ function redraw()
     screen.text_center("PANIC!")
   end
   
+  if savedState == 1 then
+    screen.level(5)
+    screen.rect(0,0,128,64)
+    screen.fill()
+    screen.level(15)
+    screen.move(64,32)
+    screen.text_center("SAVED: laststate.pset")
+  end
+  
+  
   screen.update()
 
 end
 
-local rotateCounter = 0
-local xCounter = 0
-local xAdd = 0
+
+local msgs = {
+  "ken stone 4 ever",
+  "to infinity and beyond",
+  "i <3 u",
+  "you're a nice person",
+  "this is modern art",
+  "pling",
+  "plong",
+  "boop",
+  "beep",
+  "listen to the machine",
+  "bleep",
+  "bloop",
+  "synth nerds unite",
+  "norns for president",
+  "it's mono-me",
+  "listen",
+  "watch",
+  "fall sleep",
+  "ever tried this on drugs?",
+  "say no to drugs",
+  "billions of stars",
+  "someone loves you",
+  "improvise. adapt. norns.",
+  "you're a wizard",
+  " ",
+  " ",
+  " ",
+  " ",
+  " ",
+  " "
+}
+
+
+
+-- MANUAL
+function drawManual(page)
+  
+  if page == 1 then -- infinite melody
+    screenClear()
+    if imSelUI == 1 then --clock
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Clock")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- 'DSR In' clock rate")
+      screen.move(0,27)
+      screen.text("- Pushes 1 or 0 into 'DSR In'")
+      screen.move(0,37)
+      screen.text("- Faster = more randomness")
+      screen.move(0,47)
+      screen.text("- Synced to norns' clock")
+    elseif imSelUI == 2 then -- advance
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Advance")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- Rhythm clock rate")
+      screen.move(0,27)
+      screen.text("- Pushes 'DSR In' bits down")
+      screen.move(0,37)
+      screen.text("- Faster = faster melodies")
+      screen.move(0,47)
+      screen.text("- Synced to norns' clock")
+    elseif imSelUI == 3 then --mode
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Advance Mode")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("rnd: all bits are pushed")
+      screen.move(0,27)
+      screen.text("at once (more randomness)")
+      screen.move(0,40)
+      screen.text("1/f: low bits are pushed more")
+      screen.move(0,50)
+      screen.text("often (more small changes)")
+      
+    elseif imSelUI == 4 or imSelUI == 5 then --noise gen
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Digital Noise Generator")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- Queues 1 or 0 at 'DSR In'")
+      screen.move(0,27)
+      screen.text("- int: internal noise gen")
+      screen.move(0,37)
+      screen.text("- ext: external signal")
+      screen.move(0,50)
+      screen.text("Hint:")
+      screen.move(0,57)
+      screen.text("Map ext. signal to MIDI CC!")
+    elseif imSelUI == 6 then --sense
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Sense / Comparator")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- Digital noise threshold")
+      screen.move(0,27)
+      screen.text("- Noise > Sense: 1")
+      screen.move(0,37)
+      screen.text("- Noise <= Sense: 0")
+      screen.move(0,47)
+      screen.text("- Sense = 64: 50/50 chance")
+    end
+  elseif page == 2 then -- diatonic converter
+    screenClear()
+    if dcSelUI == 1 then -- input
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Input")
+      
+      screen.level(8)
+      screen.move(0,20)
+      screen.text("Select an output to be converted")
+      screen.move(0,30)
+      screen.text("to diatonic note numbers")
+    elseif dcSelUI == 2+dcSelOffset then -- root
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Root")
+      
+      screen.move(0,20)
+      screen.level(8)
+      screen.text("Offsets diatonic note output")
+    elseif dcSelUI == 3+dcSelOffset then -- scale
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Scale")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- Diatonic output scale")
+      screen.move(0,27)
+      screen.text("- Maj: C D E F G A B C")
+      screen.move(0,37)
+      screen.text("- Min: C D Eb F G Ab Bb C")
+    elseif dcSelUI == 4+dcSelOffset then -- scaling
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Ouput Scaling")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- Scales output values")
+      screen.move(0,27)
+      screen.text("- Scaling < 1.0 deteriorates")
+      screen.move(0,37)
+      screen.text("diatonic note intervals")
+      
+    elseif dcSelUI > 4+dcSelOffset then -- bit disable
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Bit Disable")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- Bits 4+5+6: octaves -1 to 6")
+      screen.move(0,27)
+      screen.text("- Bit 4 only: octaves -1 to 0")
+      screen.move(0,40)
+      screen.text("Hint:")
+      screen.move(0,47)
+      screen.text("Use 'Root' to offset notes!")
+      
+      
+    end
+  elseif page == 3 or page == 5 then -- output processing
+      screenClear()
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Output Processing")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- Scale and offset outputs")
+      screen.move(0,27)
+      screen.text("- Each processed output has")
+      screen.move(0,37)
+      screen.text("an individual MIDI setting!")
+      screen.move(0,57)
+      screen.text("See EDIT>MIDI Output Settings")
+      
+  elseif page == 4 then -- modulo magic
+    screenClear()
+    if mmSelUI == 1 then -- input
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Input")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- Select output to process")
+    elseif mmSelUI == 2+mmSelOffset then -- initiation
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Initiation")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- Threshold for processing")
+      screen.move(0,27)
+      screen.text("- Triggerable multiple times")
+      screen.move(0,37)
+      screen.text("as set by 'Steps'")
+    elseif mmSelUI == 3+mmSelOffset then -- offset
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Offset")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- Added to 1st 'Initiation'")
+    elseif mmSelUI == 4+mmSelOffset then -- offset
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Step Size")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- Added/subtracted from")
+      screen.move(0,27)
+      screen.text("input on 'Initiation' trigger")
+    elseif mmSelUI == 5+mmSelOffset or mmSelUI == 6+mmSelOffset then -- offset
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Add/Subtract")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- ... from 'Step Size' value")
+      screen.move(0,27)
+      screen.text("- Used for modulation")
+    elseif mmSelUI == 7+mmSelOffset then -- offset
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Steps")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- Number of times that")
+      screen.move(0,27)
+      screen.text("'Initiation' can be triggered")
+      
+    end
+  elseif page == 6 then -- modulation
+      screenClear()
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("Modulation")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- Modulate 'Target'w/'Source")
+      screen.move(0,27)
+      screen.text("- 'Amount' can be negative")
+      screen.move(0,37)
+      screen.text("- 3 'Manual' sources M1-3")
+      screen.move(0,47)
+      screen.text("can be mapped to MIDI CC")
+      
+  elseif page == 7 then -- midi note settings
+      screenClear()
+      screen.move(0,7)
+      screen.level(15)
+      screen.text("MIDI Note On/Off Settings")
+      
+      screen.level(8)
+      screen.move(0,17)
+      screen.text("- Choose output and select")
+      screen.move(0,24)
+      screen.text("bits to turn on and off")
+      screen.move(0,31)
+      screen.text("its MIDI notes")
+      screen.move(0,45)
+      screen.text("- A note must be off")
+      screen.move(0,52)
+      screen.text("before a new one can start")
+      
+  elseif page == 8 then -- modern art
+      --screen.move(0,7)
+      --screen.level(15)
+      --screen.text("Tip "..artSelUI)
+    if artOn == 0 then
+      screen.move(math.random(32,96),math.random(7,57))
+      screen.level(math.random(1,10))
+      screen.text_center(msgs[math.random(1,#msgs)])
+      artOn = 1
+    end
+      --screen.text(tips[artSelUI])
+  end
+end
+
+
+local tips = {
+  "Learn the Infinite Melody by\nsetting 'Clock' and 'Adv.' to 0 and\n pressing K1 and K2 to send manual\n clock pulses.\n\nAlso set 'Noise' to 'ext' and play with\n'Value' and Sense'.",
+  "Learn the Diatonic Converter and Modulo Magic\n by changing the 'Manual' input values and watching\nthe output.",
+  "Processed outputs, titled 'Proc.' or '...-p'\nhave their own MIDI settings!\n\nGo to 'MIDI Output Settings' in\nthe EDIT menu to configure them.",
+  "If you get a stuck MIDI note\nhold K1 and press K2 for MIDI Panic.",
+
+  "To save your current settings\nhold K1 and press K3. They will be\nloaded at startup automatically.",
+} 
+
+function num2Note(val)
+  return dcMidiNotes[val%12+1]..math.floor(val/12)-1
+end
 
 function drawViz(bang)
   if selPage== 8 then
@@ -1496,6 +1897,12 @@ function drawViz(bang)
       screen.stroke()
     else
       screen.fill()
+    end
+    
+    if bang > 1 then
+      screen.level(math.random(1,8))
+      screen.move(math.random(1,128),math.random(1,64))
+      screen.text(string.char(math.random(1,127)))
     end
   end
   
@@ -2180,6 +2587,7 @@ end
 
 
 function cleanup ()
+  --params:save("laststate.pset",laststate)
   screenClear()
   allNotesOff()
   print("Ken Stone 4 ever!")
