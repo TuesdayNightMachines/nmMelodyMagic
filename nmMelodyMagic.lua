@@ -1,5 +1,5 @@
 -- nmMelodyMagic
--- 0.6.3 @NightMachines
+-- 0.6.8 @NightMachines
 -- llllllll.co/t/nmmelodymagic/
 --
 -- Port of Ken Stone's CV
@@ -131,13 +131,13 @@ local out2SelUI = 1
 
 -- MODULATION PAGE
 local modSelUI = 1
-local modSources = {"DAC1", "DAC1-p", "DAC2", "DAC2-p", "DAC3", "DAC3-p","Mix","Mix-p","Dia", "Dia-p", "Modulo", "Modulo-p","Manual 1", "Manual 2", "Manual 3"}
+local modSources = {"DAC1", "DAC1-p", "DAC2", "DAC2-p", "DAC3", "DAC3-p","Mix","Mix-p","Dia", "Dia-p", "Modulo", "Modulo-p","Manual 1", "Manual 2", "Manual 3", "Crow In 1", "Crow In 2"}
 local modTargets = {"Clock", "Advance", "Mode", "Sense", "Root", "Scale", "Scaling", "Initiation", "Offset", "Step Size", "Steps"}
 local modTgtIds = {"imClockRate","imAdvanceRate", "imRndMode", "imSense", "dcRoot", "dcMajMin", "dcScaling", "mmInit", "mmOff", "mmStepSize", "mmSteps"}
 local modPrevVals = {
-  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
 }
 
 -- MIDI NOTE SETTINGS PAGE
@@ -148,6 +148,11 @@ local noteOutSel = 1
 -- MODERN ART PAGE
 local artSelUI = 1
 local artOn = 0
+
+
+-- CROW STUFF
+local crowOuts = {"off","DAC1", "DAC1-p", "DAC2", "DAC2-p", "DAC3", "DAC3-p","Mix","Mix-p","Dia", "Dia-p", "Modulo", "Modulo-p"}
+local crowInRanges = {"0-5V", "0-10V"}
 
 
 function init()
@@ -177,15 +182,24 @@ function init()
   for i=1,30 do
     allBits[i]=0
   end
+  
+  for i=1,4 do
+    crow.output[i].volts = 0
+    crow.output[i].slew = 0
+  end
+  
+  crow.input[1].mode("none")
+  crow.input[2].mode("none")
 
+  
   params:add_separator("nmMelodyMagic")
-  params:add{type = "trigger", id = "loadDefault", name = "Load Default Settings", action=function(x) params:read(norns.state.data.."default.pset") end}
-  params:add{type = "trigger", id = "loadLaststate", name = "Load Last State Settings", action=function(x) params:read(norns.state.data.."laststate.pset") end}
+  params:add{type = "trigger", id = "loadDefault", name = "Load Default Settings", action=function(x) params:read(norns.state.data.."default.pset") params:bang() end}
+  params:add{type = "trigger", id = "loadLaststate", name = "Load Last State Settings", action=function(x) params:read(norns.state.data.."laststate.pset") params:bang() end}
   params:add{type = "option", id = "audioOut", name = "Audio Output", options = onOff, default = 1, action=function(x) audioOut=x end}
   params:add{type = "option", id = "midi_input", name = "Midi Input", options = devices, default = 2, action=set_midi_input}
   params:add{type = "option", id = "midi_output", name = "Midi Output", options = devices, default = 1, action=set_midi_output}
   
-  midi_output = midi.connect(params:get("midi_output"))
+  midi_output = midi.connect(params:get("midi_output")) 
   
   
   params:add_group("MIDI Output Settings",24)
@@ -218,6 +232,37 @@ function init()
   params:add{type = "option", id = "mmOutCh", name = "Modulo Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
   params:add{type = "option", id = "mmOutpMidi", name = "Modulo Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x) allNotesOff() end}
   params:add{type = "option", id = "mmOutpCh", name = "Modulo Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  
+  
+  params:add_group("Crow I/O Settings",20)
+  params:add_separator("Outputs (0-10V)") 
+  params:add{type = "option", id = "crowOut1", name = "Crow Out 1", options = crowOuts, default = 3}
+  params:add_control("crowOut1Slew", "Crow Out 1 Slew", controlspec.new(0.0,5.0,"lin",0.05,0.0,"",1/100,false))
+  params:set_action("crowOut1Slew", function(x) crow.output[1].slew = x end)
+  params:add_control("crowOut1Off", "Crow Out 1 Offset", controlspec.new(-64,63,"lin",1,0,"",1/127,false))
+  params:add_control("crowOut1Scaling", "Crow Out 1 Scaling", controlspec.new(0.0,1.0,"lin",0.05,1.0,"",1/20,false))
+  params:add{type = "option", id = "crowOut2", name = "Crow Out 2", options = crowOuts, default = 5}
+  params:add_control("crowOut2Slew", "Crow Out 2 Slew", controlspec.new(0.0,5.0,"lin",0.05,0.0,"",1/100,false))
+  params:set_action("crowOut2Slew", function(x) crow.output[2].slew = x end)
+  params:add_control("crowOut2Off", "Crow Out 2 Offset", controlspec.new(-64,63,"lin",1,0,"",1/127,false))
+  params:add_control("crowOut2Scaling", "Crow Out 2 Scaling", controlspec.new(0.0,1.0,"lin",0.05,1.0,"",1/20,false))
+  params:add{type = "option", id = "crowOut3", name = "Crow Out 3", options = crowOuts, default = 7}
+  params:add_control("crowOut3Slew", "Crow Out 3 Slew", controlspec.new(0.0,5.0,"lin",0.05,0.0,"",1/100,false))
+  params:set_action("crowOut3Slew", function(x) crow.output[3].slew = x end)
+  params:add_control("crowOut3Off", "Crow Out 3 Offset", controlspec.new(-64,63,"lin",1,0,"",1/127,false))
+  params:add_control("crowOut3Scaling", "Crow Out 3 Scaling", controlspec.new(0.0,1.0,"lin",0.05,1.0,"",1/20,false))
+  params:add{type = "option", id = "crowOut4", name = "Crow Out 4", options = crowOuts, default = 9}
+  params:add_control("crowOut4Slew", "Crow Out 4 Slew", controlspec.new(0.0,5.0,"lin",0.05,0.0,"",1/100,false))
+  params:set_action("crowOut4Slew", function(x) crow.output[4].slew = x end)
+  params:add_control("crowOut4Off", "Crow Out 4 Offset", controlspec.new(-64,63,"lin",1,0,"",1/127,false))
+  params:add_control("crowOut4Scaling", "Crow Out 4 Scaling", controlspec.new(0.0,1.0,"lin",0.05,1.0,"",1/20,false))
+  
+  params:add_separator("Inputs")
+  params:add{type = "option", id = "crowIn1Range", name = "Crow In 1 Range", options = crowInRanges, default = 2}
+  params:add{type = "option", id = "crowIn2Range", name = "Crow In 2 Range", options = crowInRanges, default = 2}
+  
+  
+  
   
   
   
@@ -335,7 +380,7 @@ function init()
   
   params:write(norns.state.data.."default.pset")
   params:read(norns.state.data.."laststate.pset")
-  
+  params:bang()
   
   if params:get("mmIns") == 11 then
     mmSelOffset = 1
@@ -354,6 +399,7 @@ function init()
   advanceClk = clock.run(imAdvanceIn)
   noiseClk = clock.run(imNoiseGen)
   
+
   updateImOut()
   updateDcOut()
   updateMmOut()
@@ -853,6 +899,14 @@ function modulate()
       val = round(params:get("modManVal3") * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][15]
       modPrevVals[i][15] = val
+    elseif params:get("mod"..i.."Src") == 16 then -- crow in 1
+      val = round(((crowGetIn(1)/(5*params:get("crowIn1Range")))*127) * params:get("mod"..i.."Amt"))
+      outVal = val - modPrevVals[i][16]
+      modPrevVals[i][16] = val
+    elseif params:get("mod"..i.."Src") == 17 then -- crow in 2
+      val = round(((crowGetIn(2)/(5*params:get("crowIn2Range")))*127) * params:get("mod"..i.."Amt"))
+      outVal = val - modPrevVals[i][17]
+      modPrevVals[i][17] = val    
     end
 
     params:delta(modTgtIds[params:get("mod"..i.."Tgt")], outVal)
@@ -861,7 +915,15 @@ function modulate()
   
 end
 
-
+function crowGetIn(x)
+  local val = crow.input[x].query()
+  
+  if val == nil then
+    val = 0
+  end
+  
+  return util.clamp(val,0,5*params:get("crowIn"..x.."Range"))
+end
 
 
 -- BUTTONS
@@ -1471,8 +1533,19 @@ function redraw()
     screen.rect(0,57,128,14)
     screen.fill()
     screen.level(4)
-    screen.move(0,63)
-    screen.text("")
+    
+    
+    for i=1,3 do -- show Crow input values if selected as mod sources
+      if params:get("mod"..i.."Src") == 16 then
+        screen.move(0,63)
+        screen.text("Crow In 1: "..round(crowGetIn(1)/((5*params:get("crowIn1Range"))*127)) )
+      end
+      if params:get("mod"..i.."Src") == 17 then
+        screen.move(64,63)
+       screen.text("Crow In 2: "..round(crowGetIn(2)/((5*params:get("crowIn2Range"))*127)) )
+      end
+    end
+    
     
     
   elseif selPage == 7 then -- midi note settings
@@ -2403,12 +2476,40 @@ function updateImMidiOutput()
     end
   end
   
+  
+  -- -- -- CROW
+  for i=1,4 do
+    if params:get("crowOut"..i) == 2 then -- DAC1
+      crow.output[i].volts = ((imDsrOuts[1] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+    elseif params:get("crowOut"..i) == 3 then
+      crow.output[i].scale({},12,1.0)
+      crow.output[i].volts = ((imDsrOutsProc[1] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+    elseif params:get("crowOut"..i) == 4 then
+      crow.output[i].scale({},12,1.0)
+      crow.output[i].volts = ((imDsrOuts[2] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+    elseif params:get("crowOut"..i) == 5 then
+      crow.output[i].scale({},12,1.0)
+      crow.output[i].volts = ((imDsrOutsProc[2] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+    elseif params:get("crowOut"..i) == 6 then
+      crow.output[i].scale({},12,1.0)
+      crow.output[i].volts = ((imDsrOuts[3] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+    elseif params:get("crowOut"..i) == 7 then
+      crow.output[i].scale({},12,1.0)
+      crow.output[i].volts = ((imDsrOutsProc[3] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+    elseif params:get("crowOut"..i) == 8 then
+      crow.output[i].scale({},12,1.0)
+      crow.output[i].volts = ((imMixOut + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+    elseif params:get("crowOut"..i) == 9 then
+      crow.output[i].scale({},12,1.0)
+      crow.output[i].volts = ((imMixOutProc + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+    end
+  end
 
 end
 
 
+
 function updateDcMidiOutput()
-  --notesOff()
   
   if params:get("dcOutCh") > 1 then -- if output on
     if params:get("dcOutMidi") == 1 then -- MIDI Note
@@ -2452,6 +2553,13 @@ function updateDcMidiOutput()
     end
   end
 
+  for i=1,4 do
+    if params:get("crowOut"..i) == 10 then -- DAC1
+      crow.output[i].volts = ((dcOut + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+    elseif params:get("crowOut"..i) == 11 then
+      crow.output[i].volts = ((dcOutProc + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+    end
+  end
 end
 
 
@@ -2501,6 +2609,14 @@ function updateMmMidiOutput()
     end
   end
   
+  for i=1,4 do
+    if params:get("crowOut"..i) == 12 then 
+      crow.output[i].volts = ((mmOut + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+    elseif params:get("crowOut"..i) == 13 then
+      crow.output[i].volts = ((mmOutProc + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+    end
+  end
+  
 end
 
 
@@ -2520,6 +2636,9 @@ function allNotesOff()
 end
 
 
+function midi2cv(val)
+  return (util.clamp(val,0,119)/119)*10.0
+end
 
 
 
@@ -2591,4 +2710,8 @@ function cleanup ()
   screenClear()
   allNotesOff()
   print("Ken Stone 4 ever!")
+  clock.cancel(clockClk)
+  clock.cancel(advanceClk)
+  clock.cancel(noiseClk)
+  
 end
