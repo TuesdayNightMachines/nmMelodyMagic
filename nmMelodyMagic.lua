@@ -1,5 +1,5 @@
 -- nmMelodyMagic
--- 0.6.9 @NightMachines
+-- 0.6.9.1 @NightMachines
 -- llllllll.co/t/nmmelodymagic/
 --
 -- Port of Ken Stone's CV
@@ -155,6 +155,12 @@ local crowOuts = {"off","DAC1", "DAC1-p", "DAC2", "DAC2-p", "DAC3", "DAC3-p","Mi
 local crowInRanges = {"0-5V", "0-10V"}
 local cvGate ={"CV","Gate"} 
 local cvClock ={"CV","Clock"} 
+local crowGates = {0,0,0,0}
+
+
+
+
+
 
 
 function init()
@@ -203,35 +209,35 @@ function init()
   
   
   params:add_group("MIDI Output Settings",24)
-  params:add{type = "option", id = "imDAC1Midi", name = "DAC 1 Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC1Ch", name = "DAC 1 Channel", options = midiChs, default = 2, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC1pMidi", name = "DAC 1 Proc. Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC1Midi", name = "DAC 1 Out", options = midiOuts, default = 1, wrap = false, action = function(x) end}
+  params:add{type = "option", id = "imDAC1Ch", name = "DAC 1 Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC1pMidi", name = "DAC 1 Proc. Out", options = midiOuts, default = 1, wrap = false, action = function(x) end}
   params:add{type = "option", id = "imDAC1pCh", name = "DAC 1 Proc. Channel", options = midiChs, default = 2, wrap = false, action = function(x) allNotesOff() end}
  
-  params:add{type = "option", id = "imDAC2Midi", name = "DAC 2 Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC2Ch", name = "DAC 2 Channel", options = midiChs, default = 3, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC2pMidi", name = "DAC 2 Proc. Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC2pCh", name = "DAC 2 Proc. Channel", options = midiChs, default = 4, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC2Midi", name = "DAC 2 Out", options = midiOuts, default = 2, wrap = false, action = function(x)  end}
+  params:add{type = "option", id = "imDAC2Ch", name = "DAC 2 Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC2pMidi", name = "DAC 2 Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x)  end}
+  params:add{type = "option", id = "imDAC2pCh", name = "DAC 2 Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
 
-  params:add{type = "option", id = "imDAC3Midi", name = "DAC 3 Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC3Ch", name = "DAC 3 Channel", options = midiChs, default = 5, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC3pMidi", name = "DAC 3 Proc. Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imDAC3pCh", name = "DAC 3 Proc. Channel", options = midiChs, default = 6, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC3Midi", name = "DAC 3 Out", options = midiOuts, default = 1, wrap = false, action = function(x)  end}
+  params:add{type = "option", id = "imDAC3Ch", name = "DAC 3 Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imDAC3pMidi", name = "DAC 3 Proc. Out", options = midiOuts, default = 1, wrap = false, action = function(x)  end}
+  params:add{type = "option", id = "imDAC3pCh", name = "DAC 3 Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
 
-  params:add{type = "option", id = "imMixMidi", name = "Mix Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imMixCh", name = "Mix Channel", options = midiChs, default = 7, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imMixpMidi", name = "Mix Proc. Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "imMixpCh", name = "Mix Proc. Channel", options = midiChs, default = 8, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imMixMidi", name = "Mix Out", options = midiOuts, default = 2, wrap = false, action = function(x)  end}
+  params:add{type = "option", id = "imMixCh", name = "Mix Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "imMixpMidi", name = "Mix Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x)  end}
+  params:add{type = "option", id = "imMixpCh", name = "Mix Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
 
-  params:add{type = "option", id = "dcOutMidi", name = "Diatonic Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "dcOutCh", name = "Diatonic Channel", options = midiChs, default = 9, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "dcOutpMidi", name = "Diatonic Proc. Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "dcOutpCh", name = "Diatonic Proc. Channel", options = midiChs, default = 10, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "dcOutMidi", name = "Diatonic Out", options = midiOuts, default = 1, wrap = false, action = function(x)  end}
+  params:add{type = "option", id = "dcOutCh", name = "Diatonic Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "dcOutpMidi", name = "Diatonic Proc. Out", options = midiOuts, default = 1, wrap = false, action = function(x)  end}
+  params:add{type = "option", id = "dcOutpCh", name = "Diatonic Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
   
-  params:add{type = "option", id = "mmOutMidi", name = "Modulo Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "mmOutCh", name = "Modulo Channel", options = midiChs, default = 11, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "mmOutpMidi", name = "Modulo Proc. Out", options = midiOuts, default = 1, wrap = false, action = function(x) allNotesOff() end}
-  params:add{type = "option", id = "mmOutpCh", name = "Modulo Proc. Channel", options = midiChs, default = 12, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "mmOutMidi", name = "Modulo Out", options = midiOuts, default = 2, wrap = false, action = function(x)  end}
+  params:add{type = "option", id = "mmOutCh", name = "Modulo Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
+  params:add{type = "option", id = "mmOutpMidi", name = "Modulo Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x)  end}
+  params:add{type = "option", id = "mmOutpCh", name = "Modulo Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x) allNotesOff() end}
   
   
   params:add_group("Crow I/O Settings",26)
@@ -439,7 +445,6 @@ function imClockIn()
 end
 
 function imClockPulse()
-  --notesOff()
   local tempArray = imDsrIn
   for i=6,2,-1 do
     imDsrIn[i] = tempArray[i-1]
@@ -534,7 +539,6 @@ function imShiftBits(dsr)
     imDsrBits[dsr][j] = tempArray[dsr][j-1]
   end
   imDsrBits[dsr][1] = imDsrIn[dsr]
-  --print("imDsrBits "..dsr..": "..imDsrBits[dsr][4]..imDsrBits[dsr][3]..imDsrBits[dsr][2]..imDsrBits[dsr][1])
 end
 
 
@@ -672,6 +676,7 @@ function updateImOut()
   imMixOutProc = util.clamp(round(imMixOut*params:get("imMixOutProcAtt")+params:get("imMixOutProcOff")),0,127)
   
   updateImMidiOutput()
+  updateCrowOut()
   
   if params:get("mmIns") < 11 then
     updateMmOut()
@@ -782,6 +787,7 @@ function updateDcOut()
   dcOutProc = util.clamp(round((dcOut*params:get("dcOutProcAtt")+params:get("dcOutProcOff"))),0,127)
   
   updateDcMidiOutput()
+  updateCrowOut()
   
 end
 
@@ -833,9 +839,158 @@ function updateMmOut()
   mmOutProc = util.clamp(round(mmOut*params:get("mmOutProcAtt")+params:get("mmOutProcOff")),0,127)
   
   updateMmMidiOutput()
+  updateCrowOut()
   
 end
 
+
+
+function updateCrowOut()
+  
+  for i=1,4 do
+    if params:get("crowOut"..i) == 2 then -- DAC1
+      if params:get("crowOut"..i.."Type") == 1 then --CV out
+        crow.output[i].volts = ((imDsrOuts[1] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+      else -- gate out
+        if allBits[params:get(midiNoteEnds[1])] == 1 and crowGates[i]==1 then
+          crowGateOut(i,0)
+        elseif allBits[params:get(midiNoteStarts[1])] == 1 and crowGates[i]==0 then
+          crowGateOut(i,1)
+        end
+      end  
+        
+    elseif params:get("crowOut"..i) == 3 then
+      if params:get("crowOut"..i.."Type") == 1 then --CV out
+      crow.output[i].volts = ((imDsrOutsProc[1] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+      else -- gate out
+        if allBits[params:get(midiNoteEnds[2])] == 1 and crowGates[i]==1 then
+          crowGateOut(i,0)
+        elseif allBits[params:get(midiNoteStarts[2])] == 1 and crowGates[i]==0 then
+          crowGateOut(i,1)
+        end
+      end
+    elseif params:get("crowOut"..i) == 4 then
+      if params:get("crowOut"..i.."Type") == 1 then --CV out
+      crow.output[i].volts = ((imDsrOuts[2] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+      else -- gate out
+        if allBits[params:get(midiNoteEnds[3])] == 1 and crowGates[i]==1 then
+          crowGateOut(i,0)
+        elseif allBits[params:get(midiNoteStarts[3])] == 1 and crowGates[i]==0 then
+          crowGateOut(i,1)
+        end
+      end
+    elseif params:get("crowOut"..i) == 5 then
+      if params:get("crowOut"..i.."Type") == 1 then --CV out
+      crow.output[i].volts = ((imDsrOutsProc[2] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+      else -- gate out
+        if allBits[params:get(midiNoteEnds[4])] == 1 and crowGates[i]==1 then
+          crowGateOut(i,0)
+        elseif allBits[params:get(midiNoteStarts[4])] == 1 and crowGates[i]==0 then
+          crowGateOut(i,1)
+        end
+      end
+  
+    elseif params:get("crowOut"..i) == 6 then
+      if params:get("crowOut"..i.."Type") == 1 then --CV out
+      crow.output[i].volts = ((imDsrOuts[3] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+      else -- gate out
+        if allBits[params:get(midiNoteEnds[5])] == 1 and crowGates[i]==1 then
+          crowGateOut(i,0)
+        elseif allBits[params:get(midiNoteStarts[5])] == 1 and crowGates[i]==0 then
+          crowGateOut(i,1)
+        end
+      end
+    elseif params:get("crowOut"..i) == 7 then
+      if params:get("crowOut"..i.."Type") == 1 then --CV out
+      crow.output[i].volts = ((imDsrOutsProc[3] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+      else -- gate out
+        if allBits[params:get(midiNoteEnds[6])] == 1 and crowGates[i]==1 then
+          crowGateOut(i,0)
+        elseif allBits[params:get(midiNoteStarts[6])] == 1 and crowGates[i]==0 then
+          crowGateOut(i,1)
+        end
+      end
+    elseif params:get("crowOut"..i) == 8 then
+      if params:get("crowOut"..i.."Type") == 1 then --CV out
+      crow.output[i].volts = ((imMixOut + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+      else -- gate out
+        if allBits[params:get(midiNoteEnds[7])] == 1 and crowGates[i]==1 then
+          crowGateOut(i,0)
+        elseif allBits[params:get(midiNoteStarts[7])] == 1 and crowGates[i]==0 then
+          crowGateOut(i,1)
+        end
+      end
+    elseif params:get("crowOut"..i) == 9 then
+      if params:get("crowOut"..i.."Type") == 1 then --CV out
+      crow.output[i].volts = ((imMixOutProc + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+      else -- gate out
+        if allBits[params:get(midiNoteEnds[8])] == 1 and crowGates[i]==1 then
+          crowGateOut(i,0)
+        elseif allBits[params:get(midiNoteStarts[8])] == 1 and crowGates[i]==0 then
+          crowGateOut(i,1)
+        end
+      end
+    elseif params:get("crowOut"..i) == 10 then
+      if params:get("crowOut"..i.."Type") == 1 then --CV out
+      crow.output[i].volts = ((dcOut + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+      else -- gate out
+        if allBits[params:get(midiNoteEnds[9])] == 1 and crowGates[i]==1 then
+          crowGateOut(i,0)
+        elseif allBits[params:get(midiNoteStarts[9])] == 1 and crowGates[i]==0 then
+          crowGateOut(i,1)
+        end
+      end
+    elseif params:get("crowOut"..i) == 11 then
+      if params:get("crowOut"..i.."Type") == 1 then --CV out
+      crow.output[i].volts = ((dcOutProc + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+      else -- gate out
+        if allBits[params:get(midiNoteEnds[10])] == 1 and crowGates[i]==1 then
+          crowGateOut(i,0)
+        elseif allBits[params:get(midiNoteStarts[10])] == 1 and crowGates[i]==0 then
+          crowGateOut(i,1)
+        end
+      end
+    elseif params:get("crowOut"..i) == 12 then
+      if params:get("crowOut"..i.."Type") == 1 then --CV out
+      crow.output[i].volts = ((mmOut + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+      else -- gate out
+        if allBits[params:get(midiNoteEnds[11])] == 1 and crowGates[i]==1 then
+          crowGateOut(i,0)
+        elseif allBits[params:get(midiNoteStarts[11])] == 1 and crowGates[i]==0 then
+          crowGateOut(i,1)
+        end
+      end
+    elseif params:get("crowOut"..i) == 13 then
+      if params:get("crowOut"..i.."Type") == 1 then --CV out
+      crow.output[i].volts = ((mmOutProc + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
+      else -- gate out
+        if allBits[params:get(midiNoteEnds[12])] == 1 and crowGates[i]==1 then
+          crowGateOut(i,0)
+        elseif allBits[params:get(midiNoteStarts[12])] == 1 and crowGates[i]==0 then
+          crowGateOut(i,1)
+        end
+      end
+    end
+  end
+  
+end
+
+
+
+function crowGateOut(out, gate)
+  crow.output[out].volts = (gate * 10.0) * params:get("crowOut"..out.."Scaling")
+  crowGates[out] = gate
+end
+
+function crowGetIn(x)
+  local val = crow.input[x].query()
+  
+  if val == nil then
+    val = 0
+  end
+  
+  return util.clamp(val,0,5*params:get("crowIn"..x.."Range"))
+end
 
 
 
@@ -916,20 +1071,10 @@ function modulate()
     end
 
     params:delta(modTgtIds[params:get("mod"..i.."Tgt")], outVal)
---    print("tgt: "..modTgtIds[params:get("mod"..i.."Tgt")].."outval: "..round(outVal))
   end
   
 end
 
-function crowGetIn(x)
-  local val = crow.input[x].query()
-  
-  if val == nil then
-    val = 0
-  end
-  
-  return util.clamp(val,0,5*params:get("crowIn"..x.."Range"))
-end
 
 
 -- BUTTONS
@@ -1991,11 +2136,9 @@ end
 function screenClear()
   local rotate = 0
   if rotateCounter ~= 0 then
-    print(rotateCounter)
     rotate = 360-rotateCounter
     screen.rotate(0*math.pi/180)
     rotateCounter=0
-    print(rotate)
   end
   screen.clear()
   screen.level(0)
@@ -2303,19 +2446,11 @@ end
 re:start()
 
 
-function crowGates(signal, gateOut)
-  for i=1,4 do
-    if params:get("crowOut"..i.."Type") == 2 and params:get("crowOut"..i) == signal+1 then
-      crow.output[i].volts = (gateOut * 10.0) * params:get("crowOut"..i.."Scaling")
-      print(crowOuts[signal+1].."  "..gateOut)
-    end 
-  end
-end
+
 
 -- MIDI Stuff
 
 function updateImMidiOutput()
-  --notesOff()
   
   if params:get("imDAC1Ch") > 1 then -- if output on
     if params:get("imDAC1Midi") == 1 then -- MIDI Note
@@ -2323,12 +2458,9 @@ function updateImMidiOutput()
       if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
           midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
           activeNotes[i]=-1
-          crowGates(1,0)
-          
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imDsrOuts[1]
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
-        crowGates(1,1)
         if audioOut==1 then
           engine.hz(midi_to_hz(activeNotes[i]))
         end
@@ -2346,12 +2478,9 @@ function updateImMidiOutput()
       if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
           midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
           activeNotes[i]=-1
-          crowGates(2,0)
-          
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imDsrOutsProc[1]
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
-        crowGates(2,1)
         if audioOut==1 then
           engine.hz(midi_to_hz(activeNotes[i]))
         end
@@ -2370,12 +2499,9 @@ function updateImMidiOutput()
       if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
           midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
           activeNotes[i]=-1
-          crowGates(3,0)
-          
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imDsrOuts[2]
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
-        crowGates(3,1)
         if audioOut==1 then
           engine.hz(midi_to_hz(activeNotes[i]))
         end
@@ -2394,11 +2520,9 @@ function updateImMidiOutput()
       if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
           midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
           activeNotes[i]=-1
-          crowGates(4,0)
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imDsrOutsProc[2]
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
-        crowGates(4,1)
         if audioOut==1 then
           engine.hz(midi_to_hz(activeNotes[i]))
         end
@@ -2417,11 +2541,9 @@ function updateImMidiOutput()
       if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
           midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
           activeNotes[i]=-1
-          crowGates(5,0)
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imDsrOuts[3]
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
-        crowGates(5,1)
         if audioOut==1 then
           engine.hz(midi_to_hz(activeNotes[i]))
         end
@@ -2439,11 +2561,9 @@ function updateImMidiOutput()
       if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
           midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
           activeNotes[i]=-1
-          crowGates(6,0)
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imDsrOutsProc[3]
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
-        crowGates(6,1)
         if audioOut==1 then
           engine.hz(midi_to_hz(activeNotes[i]))
         end
@@ -2462,11 +2582,9 @@ function updateImMidiOutput()
       if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
           midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
           activeNotes[i]=-1
-          crowGates(7,0)
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imMixOut
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
-        crowGates(7,1)
         if audioOut==1 then
           engine.hz(midi_to_hz(activeNotes[i]))
         end
@@ -2484,11 +2602,9 @@ function updateImMidiOutput()
       if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
           midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
           activeNotes[i]=-1
-          crowGates(8,0)
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = imMixOutProc
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
-        crowGates(8,1)
         if audioOut==1 then
           engine.hz(midi_to_hz(activeNotes[i]))
         end
@@ -2501,33 +2617,7 @@ function updateImMidiOutput()
   end
   
   
-  -- -- -- CROW
-  for i=1,4 do
-    if params:get("crowOut"..i) == 2 and params:get("crowOut"..i.."Type") == 1 then -- DAC1
-      crow.output[i].volts = ((imDsrOuts[1] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
-    elseif params:get("crowOut"..i) == 3 and params:get("crowOut"..i.."Type") == 1 then
-      crow.output[i].scale({},12,1.0)
-      crow.output[i].volts = ((imDsrOutsProc[1] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
-    elseif params:get("crowOut"..i) == 4 and params:get("crowOut"..i.."Type") == 1 then
-      crow.output[i].scale({},12,1.0)
-      crow.output[i].volts = ((imDsrOuts[2] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
-    elseif params:get("crowOut"..i) == 5 and params:get("crowOut"..i.."Type") == 1 then
-      crow.output[i].scale({},12,1.0)
-      crow.output[i].volts = ((imDsrOutsProc[2] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
-    elseif params:get("crowOut"..i) == 6 and params:get("crowOut"..i.."Type") == 1 then
-      crow.output[i].scale({},12,1.0)
-      crow.output[i].volts = ((imDsrOuts[3] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
-    elseif params:get("crowOut"..i) == 7 and params:get("crowOut"..i.."Type") == 1 then
-      crow.output[i].scale({},12,1.0)
-      crow.output[i].volts = ((imDsrOutsProc[3] + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
-    elseif params:get("crowOut"..i) == 8 and params:get("crowOut"..i.."Type") == 1 then
-      crow.output[i].scale({},12,1.0)
-      crow.output[i].volts = ((imMixOut + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
-    elseif params:get("crowOut"..i) == 9 and params:get("crowOut"..i.."Type") == 1 then
-      crow.output[i].scale({},12,1.0)
-      crow.output[i].volts = ((imMixOutProc + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
-    end
-  end
+  
 
 end
 
@@ -2541,11 +2631,9 @@ function updateDcMidiOutput()
       if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
           midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
           activeNotes[i]=-1
-          crowGates(9,0)
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = dcOut
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
-        crowGates(9,1)
         if audioOut==1 then
           engine.hz(midi_to_hz(activeNotes[i]))
         end
@@ -2563,11 +2651,9 @@ function updateDcMidiOutput()
       if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
           midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
           activeNotes[i]=-1
-          crowGates(10,0)
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = dcOutProc
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
-        crowGates(10,1)
         if audioOut==1 then
           engine.hz(midi_to_hz(activeNotes[i]))
         end
@@ -2579,31 +2665,20 @@ function updateDcMidiOutput()
     end
   end
 
-  for i=1,4 do
-    if params:get("crowOut"..i) == 10 and params:get("crowOut"..i.."Type") == 1 then -- DAC1
-      crow.output[i].volts = ((dcOut + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
-    elseif params:get("crowOut"..i) == 11 and params:get("crowOut"..i.."Type") == 1 then
-      crow.output[i].volts = ((dcOutProc + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
-    end
-  end
 end
 
 
 
-function updateMmMidiOutput()
-  --notesOff()
-  
+function updateMmMidiOutput()  
   if params:get("mmOutCh") > 1 then -- if output on
     if params:get("mmOutMidi") == 1 then -- MIDI Note
       local i=11
       if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
           midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
           activeNotes[i]=-1
-          crowGates(11,0)
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = mmOut
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
-        crowGates(11,1)
         if audioOut==1 then
           engine.hz(midi_to_hz(activeNotes[i]))
         end
@@ -2621,11 +2696,9 @@ function updateMmMidiOutput()
       if allBits[params:get(midiNoteEnds[i])] == 1 and activeNotes[i] >= 0 then
           midi_output:note_off(activeNotes[i], 0, params:get(midiChIds[i])-1)
           activeNotes[i]=-1
-          crowGates(12,0)
       elseif allBits[params:get(midiNoteStarts[i])] == 1 and activeNotes[i] == -1 then
         activeNotes[i] = mmOutProc
         midi_output:note_on(activeNotes[i], 100, params:get(midiChIds[i])-1)
-        crowGates(12,1)
         if audioOut==1 then
           engine.hz(midi_to_hz(activeNotes[i]))
         end
@@ -2634,14 +2707,6 @@ function updateMmMidiOutput()
     else -- MIDI CC
       local outCC = params:get("mmOutpMidi")-1
         midi_output:cc(outCC,mmOutProc,params:get("mmOutpCh")-1)
-    end
-  end
-  
-  for i=1,4 do
-    if params:get("crowOut"..i) == 12 and params:get("crowOut"..i.."Type") == 1 then 
-      crow.output[i].volts = ((mmOut + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
-    elseif params:get("crowOut"..i) == 13 and params:get("crowOut"..i.."Type") == 1 then
-      crow.output[i].volts = ((mmOutProc + util.clamp(params:get("crowOut"..i.."Off"),0,127))/12) * params:get("crowOut"..i.."Scaling")
     end
   end
   
@@ -2683,11 +2748,11 @@ function set_midi_input(x)
 end
 
 local midi_input_event = function(data) 
-  --print('input',midi.to_msg(data))
+
 end
 
 local midi_output_event = function(data) 
-  print('output',midi.to_msg(data))
+
 end
 
 function update_midi()
@@ -2746,4 +2811,4 @@ function cleanup ()
   clock.cancel(advanceClk)
   clock.cancel(noiseClk)
   
-end
+  end
