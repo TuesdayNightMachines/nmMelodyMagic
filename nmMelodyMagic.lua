@@ -1,5 +1,5 @@
 -- nmMelodyMagic
--- 0.7.3 @NightMachines
+-- 0.7.3.1 @NightMachines
 -- llllllll.co/t/nmmelodymagic/
 --
 -- Port of Ken Stone's CV
@@ -177,7 +177,6 @@ function init()
   crow.reset()
   grid.connect()
   grid.key = gridKey
-  gridUpdateDsrLEDs()
   
   
   for id,device in pairs(midi.vports) do
@@ -469,9 +468,12 @@ function init()
   updateDcOut()
   updateMmOut()
   
-  gridKey(1,8,1)
-  gridKey(2,8,1)
-  gridKey(6,8,1)
+--  gridUpdateDsrLEDs()
+  
+  grid:led(1,8,1)
+  grid:led(2,8,1)
+  grid:led(6,8,1)
+  grid:refresh()
   
   
   redraw()
