@@ -1,5 +1,5 @@
 -- nmMelodyMagic
--- 0.7.0 @NightMachines
+-- 0.7.3 @NightMachines
 -- llllllll.co/t/nmmelodymagic/
 --
 -- Port of Ken Stone's CV
@@ -24,14 +24,13 @@
 -- K1 + K3: Save Patch
 -- 
 
+--[[
+_norns.screen_export_png("/home/we/dust/nmMelodyMagic.png")
+norns.script.load("code/nmMelodyMagic/nmMelodyMagic.lua")
+]]--
+--
+--
 
--- _norns.screen_export_png("/home/we/dust/nmMelodyMagic.png")
--- norns.script.load("code/nmMelodyMagic/nmMelodyMagic.lua")
-
-
---adjust encoder settigns to your liking
---norns.enc.sens(0,2)
---norns.enc.accel(0,false)
 
 engine.name = "PolyPerc"
 local audioOut = 1
@@ -137,6 +136,7 @@ local modTgtIds = {"imClockRate","imAdvanceRate", "imRndMode", "imSense", "dcRoo
 local modPrevVals = {
   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
 }
 
@@ -148,6 +148,7 @@ local noteOutSel = 1
 -- MODERN ART PAGE
 local artSelUI = 1
 local artOn = 0
+local page8 = 0
 
 
 -- CROW STUFF
@@ -159,14 +160,25 @@ local crowGates = {0,0,0,0}
 
 
 
-
-
+-- GRID STUFF
+local grid = util.file_exists(_path.code.."midigrid") and include "midigrid/lib/mg_128" or grid
+local gridDSR = {
+  {nil,nil,nil,nil,nil,nil}, -- DSRIn
+  {nil,nil,nil,nil,nil,nil}, -- DSR1
+  {nil,nil,nil,nil,nil,nil}, -- DSR2
+  {nil,nil,nil,nil,nil,nil}, -- DSR3
+  {nil,nil,nil,nil,nil,nil}, -- DSRmix
+}
 
 
 function init()
   screen.aa(0)
   screenClear()
   crow.reset()
+  grid.connect()
+  grid.key = gridKey
+  gridUpdateDsrLEDs()
+  
   
   for id,device in pairs(midi.vports) do
     devices[id] = device.name
@@ -250,6 +262,17 @@ function init()
   params:add{type = "option", id = "mmOutCh", name = "Modulo Channel", options = midiChs, default = 1, wrap = false, action = function(x)  end}
   params:add{type = "option", id = "mmOutpMidi", name = "Modulo Proc. Out", options = midiOuts, default = 2, wrap = false, action = function(x)  end}
   params:add{type = "option", id = "mmOutpCh", name = "Modulo Proc. Channel", options = midiChs, default = 1, wrap = false, action = function(x)  end}
+  
+  
+  
+  
+  params:add_group("Grid Settings",1)
+  params:add{type = "option", id = "gridUpdateOutsImm", name = "Update Outs Immediately", options = onOff, default = 2, action = function(x) grid:led(6,8,((-1*(x-1))+1)*14+1) grid:refresh() end }
+  
+  
+  
+  
+  
   
   
   params:add_group("Crow I/O Settings",30)
@@ -358,7 +381,7 @@ function init()
   params:add{type = "number", id = "mmOutProcOff", name = "Modulo Out Offset", min = 0, max = 127, default = 0, wrap = false}
  
   
-  params:add_group("Modulation",15)
+  params:add_group("Modulation",19)
   params:add{type = "option", id = "mod1Src", name = "Modulation 1 Source", options = modSources, default = 1}
   params:add_control("mod1Amt", "Modulation 1 Amount", controlspec.new(-1.0,1.0,"lin",0.05, 0.0,"",1/40,false))
   params:add{type = "option", id = "mod1Tgt", name = "Modulation 1 Target", options = modTargets, default = 1}
@@ -370,6 +393,10 @@ function init()
   params:add{type = "option", id = "mod3Src", name = "Modulation 3 Source", options = modSources, default = 1}
   params:add_control("mod3Amt", "Modulation 3 Amount", controlspec.new(-1.0,1.0,"lin",0.05, 0.0,"",1/40,false))
   params:add{type = "option", id = "mod3Tgt", name = "Modulation 3 Target", options = modTargets, default = 1}
+  params:add_separator("")
+  params:add{type = "option", id = "mod4Src", name = "Modulation 4 Source", options = modSources, default = 1}
+  params:add_control("mod4Amt", "Modulation 4 Amount", controlspec.new(-1.0,1.0,"lin",0.05, 0.0,"",1/40,false))
+  params:add{type = "option", id = "mod4Tgt", name = "Modulation 4 Target", options = modTargets, default = 1}
   params:add_separator("")
   params:add{type = "number", id = "modManVal1", name = "Manual Value 1", min = 0, max = 127, default = 0, wrap = false}
   params:add{type = "number", id = "modManVal2", name = "Manual Value 2", min = 0, max = 127, default = 0, wrap = false}
@@ -442,6 +469,11 @@ function init()
   updateDcOut()
   updateMmOut()
   
+  gridKey(1,8,1)
+  gridKey(2,8,1)
+  gridKey(6,8,1)
+  
+  
   redraw()
 
 end
@@ -457,15 +489,23 @@ function imClockIn()
     elseif params:get("imClockRate") < 0 then
       clock.sync(math.abs(params:get("imClockRate")/2))
       imClockTick = 1
+      grid:led(1,8,10)
+      grid:refresh()
       imClockPulse()
       clock.sync(math.abs(params:get("imClockRate")/2))
       imClockTick = 0
+      grid:led(1,8,1)
+      grid:refresh()
     else
       clock.sync((1/params:get("imClockRate"))/2)
       imClockTick = 1
+      grid:led(1,8,10)
+      grid:refresh()
       imClockPulse()
       clock.sync((1/params:get("imClockRate"))/2)
       imClockTick = 0
+      grid:led(1,8,1)
+      grid:refresh()
     end
   end
 end
@@ -481,6 +521,7 @@ function imClockPulse()
   for x=1,6 do
     allBits[x]=tonumber(string.sub(string.reverse(imDsrInString),x,x))
   end
+  gridUpdateDsrLEDs()
 end
 
 
@@ -493,21 +534,29 @@ function imAdvanceIn()
     elseif params:get("imAdvanceRate")<0 then 
       clock.sync(math.abs(params:get("imAdvanceRate")/2))
       imAdvTick = 1
+      grid:led(2,8,10)
+      grid:refresh()
       imAdvancePulse()
       clock.sync(math.abs(params:get("imAdvanceRate")/2))
       imAdvTick = 0
       for i=1,6 do
         imAdvTicks[i]=0
       end
+      grid:led(2,8,1)
+      grid:refresh()
     else
       clock.sync((1/params:get("imAdvanceRate"))/2)
       imAdvTick = 1
+      grid:led(2,8,10)
+      grid:refresh()
       imAdvancePulse()
       clock.sync((1/params:get("imAdvanceRate"))/2)
       imAdvTick = 0
       for i=1,6 do
         imAdvTicks[i]=0
       end
+      grid:led(2,8,1)
+      grid:refresh()
     end
   end
 end
@@ -702,6 +751,7 @@ function updateImOut()
   imMixOutProc = util.clamp(round(imMixOut*params:get("imMixOutProcAtt")+params:get("imMixOutProcOff")),0,127)
   
   updateImMidiOutput()
+  gridUpdateDsrLEDs()
   updateCrowOut()
   
   if params:get("mmIns") < 11 then
@@ -869,8 +919,85 @@ end
 
 
 
-function updateCrowOut()
+function gridUpdateDsrLEDs()
+  -- DSRs
+  for i=1,5 do -- y
+    for j=1,6 do -- x
+      jRev = 7-j
+      if i==1 then -- DSRin
+        if imDsrIn[j] ~= gridDSR[i][j] then -- check for changes in DSRin and if so, change according LED
+          gridDSR[i][j] = imDsrIn[j]
+          grid:led(jRev,i,imDsrIn[j]*14+1) -- on == 15, off = 1
+          grid:refresh()
+        end
+      elseif i>=2 then --- DSR 1-3 & mix
+        if imDsrBits[j][i-1] ~= gridDSR[i][j] then -- check for changes in DSRs 1-3 & mix and if so, change according LED
+          gridDSR[i][j] = imDsrBits[j][i-1]
+          grid:led(jRev,i,imDsrBits[j][i-1]*14+1) -- on == 15, off = 1
+          grid:refresh()
+        end
+      end
+    end
+  end
+end
+
+
+function gridKey(x,y,z)
   
+  if x <= 6 and y <= 5 and z == 1 then -- if touch in area of DSRs
+    local xRev = 7-x
+    if y==1 then
+      imDsrIn[xRev] = (-1*imDsrIn[xRev])+1 -- toggle bit 1 or 0
+    elseif y>=2 then
+      imDsrBits[xRev][y-1] = (-1*imDsrBits[xRev][y-1])+1 -- toggle bit 1 or 0
+    end
+    gridUpdateDsrLEDs()
+    if params:get("gridUpdateOutsImm") == 1 then -- if outputs should be updated immediately, do it, otherwise wait for next clock or advance signal
+      updateImOut()
+    end
+  end
+  
+  if x == 6 and y == 8 and z == 1 then -- if update imemdiately key
+    params:set("gridUpdateOutsImm", (-1*(params:get("gridUpdateOutsImm")-1))+2) -- toggle option on/off
+    grid:led(x,y, ((-1* (params:get("gridUpdateOutsImm")-1) ) +1) *14+1) -- toggle grid key on or off (brightness 1 or 15)
+    grid:refresh()
+  end
+  
+  
+  if x == 1 and y == 8 then -- manual clock tick
+    if z==1 then
+      imClockTick=1
+      imClockPulse()
+      grid:led(x,y,15)
+      grid:refresh()
+    else
+      imClockTick=0
+      grid:led(x,y,1)
+      grid:refresh()
+    end
+  end
+  
+  if x == 2 and y == 8 then -- manual advance tick
+    if z==1 then
+      imAdvTick=1
+      imAdvancePulse()
+      grid:led(x,y,15)
+      grid:refresh()
+    else
+      imAdvTick=0
+      for i=1,6 do
+        imAdvTicks[i]=0
+      end
+      grid:led(x,y,1)
+      grid:refresh()
+    end
+  end
+  
+end
+
+
+
+function updateCrowOut()
   for i=1,4 do
     if params:get("crowOut"..i) == 2 then -- DAC1
       if params:get("crowOut"..i.."Type") == 1 then --CV out
@@ -1026,7 +1153,7 @@ function modulate()
   local val = 0
   local outVal = 0
   
-  for i=1,3 do
+  for i=1,4 do
     if params:get("mod"..i.."Src") == 1 then
       val = round(imDsrOuts[1] * params:get("mod"..i.."Amt"))
       outVal = val - modPrevVals[i][1]
@@ -1151,7 +1278,7 @@ function key(id,st)
   end
 end
 
-local page8 = 0
+
 -- ENCODERS
 function enc(id,delta)
   if id==1 then
@@ -1186,7 +1313,7 @@ function enc(id,delta)
     elseif selPage == 5 then
       out2SelUI = util.clamp(out2SelUI + delta,1,2)
     elseif selPage == 6 then
-      modSelUI = util.clamp(modSelUI + delta,1,12)
+      modSelUI = util.clamp(modSelUI + delta,1,15)
     elseif selPage == 7 then
       noteSelUI = util.clamp(noteSelUI + delta,1,3)
     elseif selPage == 8 then
@@ -1302,10 +1429,16 @@ function enc(id,delta)
       elseif modSelUI == 9 then
         params:delta("mod3Tgt",delta)
       elseif modSelUI == 10 then
-        params:delta("modManVal1",delta)
+        params:delta("mod4Src",delta)
       elseif modSelUI == 11 then
-        params:delta("modManVal2",delta)
+        params:delta("mod4Amt",delta)
       elseif modSelUI == 12 then
+        params:delta("mod4Tgt",delta)
+      elseif modSelUI == 13 then
+        params:delta("modManVal1",delta)
+      elseif modSelUI == 14 then
+        params:delta("modManVal2",delta)
+      elseif modSelUI == 15 then
         params:delta("modManVal3",delta)
       end
       
@@ -1710,13 +1843,23 @@ function redraw()
     screen.text(modTargets[params:get("mod3Tgt")])
     
     screen.level(modSelColor(10))
-    screen.move(5,50)
-    screen.text("M1: "..params:get("modManVal1"))
+    screen.move(5,46)
+    screen.text(modSources[params:get("mod4Src")])
     screen.level(modSelColor(11))
-    screen.move(48,50)
-    screen.text("M2: "..params:get("modManVal2"))
+    screen.move(48,46)
+    screen.text(params:get("mod4Amt"))
     screen.level(modSelColor(12))
-    screen.move(85,50)
+    screen.move(85,46)
+    screen.text(modTargets[params:get("mod4Tgt")])
+    
+    screen.level(modSelColor(13))
+    screen.move(5,55)
+    screen.text("M1: "..params:get("modManVal1"))
+    screen.level(modSelColor(14))
+    screen.move(48,55)
+    screen.text("M2: "..params:get("modManVal2"))
+    screen.level(modSelColor(15))
+    screen.move(85,55)
     screen.text("M3: "..params:get("modManVal3"))
     
     --- BOTTOM
@@ -2203,55 +2346,83 @@ function noteDrawDsrs(x,y)
   else
   end
   
+  
+  
   for i=1,6 do -- draw DSR in
-    if val1 == i or val2 == i then
-      screen.level(8)
-    else
-      screen.level(0)
-    end
+    screen.level(imDsrIn[i]*2)
     screen.rect(x+21-(i-1)*4,y+1,3,3)
     screen.fill()
   end
+  
+  for i=1,6 do -- NOTE
+    if val1 == i or val2 == i then
+      screen.level(15)
+      screen.rect(x+21-(i-1)*4,y+1,3,3)
+      screen.fill()
+    end
+  end
+  
+  -- ------ draw DSR 1-4
+  
+  for i=1,6 do
+    screen.level(imDsrBits[i][1]*2)
+    screen.rect(x+21-(i-1)*4,y+14,3,3)
+    screen.fill()
+  end
+  
+  for i=1,6 do
+    screen.level(imDsrBits[i][2]*2)
+    screen.rect(x+21-(i-1)*4,y+18,3,3)
+    screen.fill()
+  end
 
+  for i=1,6 do
+    screen.level(imDsrBits[i][3]*2)
+    screen.rect(x+21-(i-1)*4,y+22,3,3)
+    screen.fill()
+  end
+
+  for i=1,6 do
+    screen.level(imDsrBits[i][4]*2)
+    screen.rect(x+21-(i-1)*4,y+26,3,3)
+    screen.fill()
+  end
+  
+  -- ------- NOTEs
   
   for i=7,12 do
     if val1 == i or val2 == i then
-      screen.level(8)
-    else
-      screen.level(0)
+      screen.level(15)
+      screen.rect(x+21-(i-7)*4,y+14,3,3)
+      screen.fill()
     end
-    screen.rect(x+21-(i-7)*4,y+14,3,3)
-    screen.fill()
   end
   
   for i=13,18 do
     if val1 == i or val2 == i then
-      screen.level(8)
-    else
-      screen.level(0)
+      screen.level(15)
+      screen.rect(x+21-(i-13)*4,y+18,3,3)
+      screen.fill()
     end
-    screen.rect(x+21-(i-13)*4,y+18,3,3)
-    screen.fill()
+    
   end
 
   for i=19,24 do
     if val1 == i or val2 == i then
-      screen.level(8)
-    else
-      screen.level(0)
+      screen.level(15)
+      screen.rect(x+21-(i-19)*4,y+22,3,3)
+      screen.fill()
     end
-    screen.rect(x+21-(i-19)*4,y+22,3,3)
-    screen.fill()
+    
   end
 
   for i=25,30 do
     if val1 == i or val2 == i then
-      screen.level(8)
-    else
-      screen.level(0)
+      screen.level(15)
+      screen.rect(x+21-(i-25)*4,y+26,3,3)
+      screen.fill()
     end
-    screen.rect(x+21-(i-25)*4,y+26,3,3)
-    screen.fill()
+    
   end
   
 end
@@ -2415,6 +2586,7 @@ function imDrawDsrs(x,y)
   end
   
   if imClockTick == 1 then -- draw clock arrow
+    
     if imSelUI == 1 then
       screen.level(15)
     else
@@ -2854,4 +3026,4 @@ function cleanup ()
   clock.cancel(advanceClk)
   clock.cancel(noiseClk)
   
-  end
+end
