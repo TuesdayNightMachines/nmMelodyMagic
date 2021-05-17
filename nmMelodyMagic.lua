@@ -1,5 +1,5 @@
 -- nmMelodyMagic
--- 0.7.3.1 @NightMachines
+-- 0.7.3.2 @NightMachines
 -- llllllll.co/t/nmmelodymagic/
 --
 -- Port of Ken Stone's CV
@@ -30,6 +30,20 @@ norns.script.load("code/nmMelodyMagic/nmMelodyMagic.lua")
 ]]--
 --
 --
+
+
+-- GRID STUFF
+-- local grid_device = util.file_exists(_path.code.."midigrid") and include "midigrid/lib/mg_128" or grid
+local grid_device = util.file_exists(_path.code.."midigrid") and include "midigrid/lib/mg_128" or grid
+--local grid_device
+
+local gridDSR = {
+  {nil,nil,nil,nil,nil,nil}, -- DSRIn
+  {nil,nil,nil,nil,nil,nil}, -- DSR1
+  {nil,nil,nil,nil,nil,nil}, -- DSR2
+  {nil,nil,nil,nil,nil,nil}, -- DSR3
+  {nil,nil,nil,nil,nil,nil}, -- DSRmix
+}
 
 
 engine.name = "PolyPerc"
@@ -160,24 +174,18 @@ local crowGates = {0,0,0,0}
 
 
 
--- GRID STUFF
-local grid = util.file_exists(_path.code.."midigrid") and include "midigrid/lib/mg_128" or grid
-local gridDSR = {
-  {nil,nil,nil,nil,nil,nil}, -- DSRIn
-  {nil,nil,nil,nil,nil,nil}, -- DSR1
-  {nil,nil,nil,nil,nil,nil}, -- DSR2
-  {nil,nil,nil,nil,nil,nil}, -- DSR3
-  {nil,nil,nil,nil,nil,nil}, -- DSRmix
-}
+
 
 
 function init()
+  
+  --grid_device = grid.connect()
+  grid_device = grid_device.connect()
+  grid_device.key = gridKey
+  
   screen.aa(0)
   screenClear()
   crow.reset()
-  grid.connect()
-  grid.key = gridKey
-  
   
   for id,device in pairs(midi.vports) do
     devices[id] = device.name
@@ -209,7 +217,7 @@ function init()
     crow.output[i].slew = 0
   end
   
-
+  
 
   
   params:add_separator("nmMelodyMagic")
@@ -266,7 +274,7 @@ function init()
   
   
   params:add_group("Grid Settings",1)
-  params:add{type = "option", id = "gridUpdateOutsImm", name = "Update Outs Immediately", options = onOff, default = 2, action = function(x) grid:led(6,8,((-1*(x-1))+1)*14+1) grid:refresh() end }
+  params:add{type = "option", id = "gridUpdateOutsImm", name = "Update Outs Immediately", options = onOff, default = 2, action = function(x) grid_device:led(6,8,((-1*(x-1))+1)*14+1) grid_device:refresh() end }
   
   
   
@@ -470,10 +478,10 @@ function init()
   
 --  gridUpdateDsrLEDs()
   
-  grid:led(1,8,1)
-  grid:led(2,8,1)
-  grid:led(6,8,1)
-  grid:refresh()
+  grid_device:led(1,8,1)
+  grid_device:led(2,8,1)
+  grid_device:led(6,8,1)
+  grid_device:refresh()
   
   
   redraw()
@@ -491,23 +499,23 @@ function imClockIn()
     elseif params:get("imClockRate") < 0 then
       clock.sync(math.abs(params:get("imClockRate")/2))
       imClockTick = 1
-      grid:led(1,8,10)
-      grid:refresh()
+      grid_device:led(1,8,10)
+      grid_device:refresh()
       imClockPulse()
       clock.sync(math.abs(params:get("imClockRate")/2))
       imClockTick = 0
-      grid:led(1,8,1)
-      grid:refresh()
+      grid_device:led(1,8,1)
+      grid_device:refresh()
     else
       clock.sync((1/params:get("imClockRate"))/2)
       imClockTick = 1
-      grid:led(1,8,10)
-      grid:refresh()
+      grid_device:led(1,8,10)
+      grid_device:refresh()
       imClockPulse()
       clock.sync((1/params:get("imClockRate"))/2)
       imClockTick = 0
-      grid:led(1,8,1)
-      grid:refresh()
+      grid_device:led(1,8,1)
+      grid_device:refresh()
     end
   end
 end
@@ -536,29 +544,29 @@ function imAdvanceIn()
     elseif params:get("imAdvanceRate")<0 then 
       clock.sync(math.abs(params:get("imAdvanceRate")/2))
       imAdvTick = 1
-      grid:led(2,8,10)
-      grid:refresh()
+      grid_device:led(2,8,10)
+      grid_device:refresh()
       imAdvancePulse()
       clock.sync(math.abs(params:get("imAdvanceRate")/2))
       imAdvTick = 0
       for i=1,6 do
         imAdvTicks[i]=0
       end
-      grid:led(2,8,1)
-      grid:refresh()
+      grid_device:led(2,8,1)
+      grid_device:refresh()
     else
       clock.sync((1/params:get("imAdvanceRate"))/2)
       imAdvTick = 1
-      grid:led(2,8,10)
-      grid:refresh()
+      grid_device:led(2,8,10)
+      grid_device:refresh()
       imAdvancePulse()
       clock.sync((1/params:get("imAdvanceRate"))/2)
       imAdvTick = 0
       for i=1,6 do
         imAdvTicks[i]=0
       end
-      grid:led(2,8,1)
-      grid:refresh()
+      grid_device:led(2,8,1)
+      grid_device:refresh()
     end
   end
 end
@@ -929,14 +937,14 @@ function gridUpdateDsrLEDs()
       if i==1 then -- DSRin
         if imDsrIn[j] ~= gridDSR[i][j] then -- check for changes in DSRin and if so, change according LED
           gridDSR[i][j] = imDsrIn[j]
-          grid:led(jRev,i,imDsrIn[j]*14+1) -- on == 15, off = 1
-          grid:refresh()
+          grid_device:led(jRev,i,imDsrIn[j]*14+1) -- on == 15, off = 1
+          grid_device:refresh()
         end
       elseif i>=2 then --- DSR 1-3 & mix
         if imDsrBits[j][i-1] ~= gridDSR[i][j] then -- check for changes in DSRs 1-3 & mix and if so, change according LED
           gridDSR[i][j] = imDsrBits[j][i-1]
-          grid:led(jRev,i,imDsrBits[j][i-1]*14+1) -- on == 15, off = 1
-          grid:refresh()
+          grid_device:led(jRev,i,imDsrBits[j][i-1]*14+1) -- on == 15, off = 1
+          grid_device:refresh()
         end
       end
     end
@@ -961,8 +969,8 @@ function gridKey(x,y,z)
   
   if x == 6 and y == 8 and z == 1 then -- if update imemdiately key
     params:set("gridUpdateOutsImm", (-1*(params:get("gridUpdateOutsImm")-1))+2) -- toggle option on/off
-    grid:led(x,y, ((-1* (params:get("gridUpdateOutsImm")-1) ) +1) *14+1) -- toggle grid key on or off (brightness 1 or 15)
-    grid:refresh()
+    grid_device:led(x,y, ((-1* (params:get("gridUpdateOutsImm")-1) ) +1) *14+1) -- toggle grid key on or off (brightness 1 or 15)
+    grid_device:refresh()
   end
   
   
@@ -970,12 +978,12 @@ function gridKey(x,y,z)
     if z==1 then
       imClockTick=1
       imClockPulse()
-      grid:led(x,y,15)
-      grid:refresh()
+      grid_device:led(x,y,15)
+      grid_device:refresh()
     else
       imClockTick=0
-      grid:led(x,y,1)
-      grid:refresh()
+      grid_device:led(x,y,1)
+      grid_device:refresh()
     end
   end
   
@@ -983,15 +991,15 @@ function gridKey(x,y,z)
     if z==1 then
       imAdvTick=1
       imAdvancePulse()
-      grid:led(x,y,15)
-      grid:refresh()
+      grid_device:led(x,y,15)
+      grid_device:refresh()
     else
       imAdvTick=0
       for i=1,6 do
         imAdvTicks[i]=0
       end
-      grid:led(x,y,1)
-      grid:refresh()
+      grid_device:led(x,y,1)
+      grid_device:refresh()
     end
   end
   
@@ -3021,8 +3029,8 @@ function cleanup ()
     _norns.screen_export_png(norns.state.data.."modernart.png")
   end
   --params:save("laststate.pset",laststate)
-  screenClear()
-  allNotesOff()
+  --screenClear()
+  --allNotesOff()
   print("Ken Stone 4 ever!")
   clock.cancel(clockClk)
   clock.cancel(advanceClk)
