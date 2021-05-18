@@ -1,5 +1,5 @@
 -- nmMelodyMagic
--- 0.7.3.2 @NightMachines
+-- 0.7.4 @NightMachines
 -- llllllll.co/t/nmmelodymagic/
 --
 -- Port of Ken Stone's CV
@@ -33,9 +33,8 @@ norns.script.load("code/nmMelodyMagic/nmMelodyMagic.lua")
 
 
 -- GRID STUFF
--- local grid_device = util.file_exists(_path.code.."midigrid") and include "midigrid/lib/mg_128" or grid
+
 local grid_device = util.file_exists(_path.code.."midigrid") and include "midigrid/lib/mg_128" or grid
---local grid_device
 
 local gridDSR = {
   {nil,nil,nil,nil,nil,nil}, -- DSRIn
@@ -727,7 +726,7 @@ end
 
 
 function updateImOut()
-  modulate()
+  
   
    -- IM DSR DAC outs
   for d=1,3 do
@@ -760,6 +759,7 @@ function updateImOut()
   imMixOut = util.clamp(mix,0,127) -- clamp to 0-127
   imMixOutProc = util.clamp(round(imMixOut*params:get("imMixOutProcAtt")+params:get("imMixOutProcOff")),0,127)
   
+  modulate()
   updateImMidiOutput()
   gridUpdateDsrLEDs()
   updateCrowOut()
@@ -777,7 +777,6 @@ end
 
 function updateDcOut()
   -- DC OUT
-  modulate()
   
   dcStringNote = ""
   dcStringOctave = ""
@@ -871,7 +870,8 @@ function updateDcOut()
   
   dcOut = util.clamp(round((((dcOctave-1)*12) + tempNote) * (params:get("dcScaling")/127)) + params:get("dcRoot"),0,127)
   dcOutProc = util.clamp(round((dcOut*params:get("dcOutProcAtt")+params:get("dcOutProcOff"))),0,127)
-  
+
+  modulate()
   updateDcMidiOutput()
   updateCrowOut()
   
@@ -886,7 +886,6 @@ end
 
 
 function updateMmOut()   -- MODULO MAGIC OUT
-  modulate()
 
   if params:get("mmIns") == 1 then
     mmTracker = imDsrOuts[1]
@@ -912,16 +911,18 @@ function updateMmOut()   -- MODULO MAGIC OUT
     mmTracker = params:get("mmManVal")
   end
 
+  mmStepCount = util.clamp(math.floor((mmTracker-params:get("mmOff"))/params:get("mmInit")),0,params:get("mmSteps"))
 
-  if mmTracker >= params:get("mmOff") + ((1+mmStepCount)*params:get("mmInit")) then
-    mmStepCount = util.clamp(mmStepCount+1,0,params:get("mmSteps"))
-  elseif mmTracker < params:get("mmOff") + ((mmStepCount)*params:get("mmInit")) then
-    mmStepCount = util.clamp(mmStepCount-1,0,params:get("mmSteps"))  
-  end
+  -- if mmTracker >= params:get("mmOff") + ((1+mmStepCount)*params:get("mmInit")) then
+  --   mmStepCount = util.clamp(math.ceil((mmTracker-params:get("mmOff"))/params:get("mmInit")),0,params:get("mmSteps"))
+  -- elseif mmTracker < params:get("mmOff") + ((mmStepCount)*params:get("mmInit")) then
+  --   mmStepCount = util.clamp(math.floor((mmTracker-params:get("mmOff"))/params:get("mmInit")),0,params:get("mmSteps"))
+  -- end
   
   mmOut = util.clamp(mmTracker + (mmStepCount * (params:get("mmStepSize")+params:get("mmAdd")-params:get("mmSub"))),0,127)
   mmOutProc = util.clamp(round(mmOut*params:get("mmOutProcAtt")+params:get("mmOutProcOff")),0,127)
   
+  modulate()
   updateMmMidiOutput()
   updateCrowOut()
   
@@ -1162,84 +1163,116 @@ end
 function modulate()
   local val = 0
   local outVal = 0
+  local rateScale = 1
+  
+  
   
   for i=1,4 do
+    if params:get("mod"..i.."Tgt")==1 or params:get("mod"..i.."Tgt")==2 then -- scale modulation if targets are clock or advance, to avoid extreme values
+      rateScale = 0.25
+    end  
     if params:get("mod"..i.."Src") == 1 then
-      val = round(imDsrOuts[1] * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][1]
+      val = round((imDsrOuts[1]*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][1])
       modPrevVals[i][1] = val
     elseif params:get("mod"..i.."Src") == 2 then
-      val = round(imDsrOutsProc[1] * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][2]
+      val = round((imDsrOutsProc[1]*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][2])
       modPrevVals[i][2] = val
     elseif params:get("mod"..i.."Src") == 3 then
-      val = round(imDsrOuts[2] * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][3]
+      val = round((imDsrOuts[2]*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][3])
       modPrevVals[i][3] = val
     elseif params:get("mod"..i.."Src") == 4 then
-      val = round(imDsrOutsProc[2] * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][4]
+      val = round((imDsrOutsProc[2]*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][4])
       modPrevVals[i][4] = val
     elseif params:get("mod"..i.."Src") == 5 then
-      val = round(imDsrOuts[3] * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][5]
+      val = round((imDsrOuts[3]*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][5])
       modPrevVals[i][5] = val
     elseif params:get("mod"..i.."Src") == 6 then
-      val = round(imDsrOutsProc[3] * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][6]
+      val = round((imDsrOutsProc[3]*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][6])
       modPrevVals[i][6] = val
     elseif params:get("mod"..i.."Src") == 7 then
-      val = round(imMixOut * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][7]
+      val = round((imMixOut*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][7])
       modPrevVals[i][7] = val
     elseif params:get("mod"..i.."Src") == 8 then
-      val = round(imMixOutProc * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][8]
+      val = round((imMixOutProc*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][8])
       modPrevVals[i][8] = val
     elseif params:get("mod"..i.."Src") == 9 then
-      val = round(dcOut * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][9]
+      val = round((dcOut*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][9])
       modPrevVals[i][9] = val
     elseif params:get("mod"..i.."Src") == 10 then
-      val = round(dcOutProc * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][10]
+      val = round((dcOutProc*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][10])
       modPrevVals[i][10] = val
     elseif params:get("mod"..i.."Src") == 11 then
-      val = round(mmOut * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][11]
+      val = round((mmOut*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][11])
       modPrevVals[i][11] = val
     elseif params:get("mod"..i.."Src") == 12 then
-      val = round(mmOutProc * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][12]
+      val = round((mmOutProc*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][12])
       modPrevVals[i][12] = val
     elseif params:get("mod"..i.."Src") == 13 then
-      val = round(params:get("modManVal1") * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][13]
+      val = round((params:get("modManVal1")*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][13])
       modPrevVals[i][13] = val
     elseif params:get("mod"..i.."Src") == 14 then
-      val = round(params:get("modManVal2") * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][14]
+      val = round((params:get("modManVal2")*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][14])
       modPrevVals[i][14] = val
     elseif params:get("mod"..i.."Src") == 15 then
-      val = round(params:get("modManVal3") * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][15]
+      val = round((params:get("modManVal3")*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][15])
       modPrevVals[i][15] = val
     elseif params:get("mod"..i.."Src") == 16 then -- crow in 1
-      val = round(((crowGetIn(1)/(5*params:get("crowIn1Range")))*127) * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][16]
+      val = round((((crowGetIn(1)/(5*params:get("crowIn1Range")))*127)*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][16])
       modPrevVals[i][16] = val
     elseif params:get("mod"..i.."Src") == 17 then -- crow in 2
-      val = round(((crowGetIn(2)/(5*params:get("crowIn2Range")))*127) * params:get("mod"..i.."Amt"))
-      outVal = val - modPrevVals[i][17]
+      val = round((((crowGetIn(2)/(5*params:get("crowIn2Range")))*127)*(rateScale*1)) * params:get("mod"..i.."Amt"))
+      outVal = val + params:get(modTgtIds[params:get("mod"..i.."Tgt")]) + (-1*modPrevVals[i][17])
       modPrevVals[i][17] = val    
     end
-
-    params:delta(modTgtIds[params:get("mod"..i.."Tgt")], outVal)
+    
+    if params:get("mod"..i.."Tgt")==1 or params:get("mod"..i.."Tgt")==2 then -- avoind clock and advance to go to 0
+      if params:get("mod"..i.."Amt") ~= 0 then
+        if outVal == 0 then
+          outVal = 1
+        end
+      end
+    end
+    params:set(modTgtIds[params:get("mod"..i.."Tgt")], outVal)
+    --params:delta(modTgtIds[params:get("mod"..i.."Tgt")], outVal)
   end
   
 end
 
+--[[
+p: 8
 
+v1: 4
+p: 12
+
+v2: 5+12-4
+p: 13
+
+v3 -7 +13-5
+p: 1
+
+v4 -5 + 1+7
+
+
+
+
+
+]]
 
 -- BUTTONS
 function key(id,st)
@@ -3036,4 +3069,4 @@ function cleanup ()
   clock.cancel(advanceClk)
   clock.cancel(noiseClk)
   
-end
+  end
