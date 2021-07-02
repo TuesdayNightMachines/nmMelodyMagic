@@ -184,7 +184,6 @@ function init()
   
   screen.aa(0)
   screenClear()
-  crow.reset()
   
   for id,device in pairs(midi.vports) do
     devices[id] = device.name
@@ -1142,12 +1141,14 @@ end
 function crowGateOut(out, gate)
   crow.output[out].volts = (gate * 10.0) * params:get("crowOut"..out.."Scaling")
   crowGates[out] = gate
-  if crow.connected() == true and gate == 1 then
+  if norns.crow.connected() == true and gate == 1 then
     drawViz(4)
   end
 end
 
 function crowGetIn(x)
+  -- FIXME query doesn't return a value, you need to capture the response
+  -- by defining: crow.input[x].stream = function(x) ... end
   local val = crow.input[x].query()
   
   if val == nil then
